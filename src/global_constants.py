@@ -1,0 +1,5 @@
+DEBUG = True
+
+LOG_IN_FILE = False
+LOG_IN_SIGNAL = False
+LOG_SHOW_INSPECT = True

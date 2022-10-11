@@ -9,7 +9,8 @@ from forms.MainForm import MainForm
 # endregion
 
 # region src imports
-from src.core.Log import except_hook
+from core.log import print_i, print_e, print_d
+from src.core.log import except_hook, OutputBuffer
 # endregion
 
 import tracemalloc
@@ -19,6 +20,14 @@ tracemalloc.start(1)
 if __name__ == '__main__':
     # std overwrite
     sys.excepthook = except_hook
+    sys.stdout = OutputBuffer()
+    os.system('cls')  # For Build
+
+    print_i("Run app ...")
+
+    for _dir in ['logs']:
+        if not os.path.exists(_dir):
+            os.makedirs(_dir)
 
     # region dpi correct
     default_pdi = 96
