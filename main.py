@@ -9,7 +9,8 @@ from forms.MainForm import MainForm
 # endregion
 
 # region src imports
-from core.log import print_i, print_e, print_d
+from src.global_constants import APP_NAME, CONFIGURATION, ConfigurationMode
+from src.core.log import print_i, print_e, print_d
 from src.core.log import except_hook, OutputBuffer
 # endregion
 
@@ -18,10 +19,12 @@ tracemalloc.start(1)
 
 
 if __name__ == '__main__':
+
     # std overwrite
     sys.excepthook = except_hook
     sys.stdout = OutputBuffer()
-    os.system('cls')  # For Build
+    if CONFIGURATION is ConfigurationMode.RELEASE:
+        os.system('cls')  # For Release
 
     print_i("Run app ...")
 
@@ -42,7 +45,7 @@ if __name__ == '__main__':
     # endregion
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("PhotoDraw")
+    app.setApplicationName(APP_NAME)
 
     screen = app.primaryScreen()
     size = screen.size()
