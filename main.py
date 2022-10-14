@@ -3,6 +3,7 @@ import os
 import sys
 
 from PyQt5 import QtWidgets, QtCore
+import gettext
 
 # region Forms imports
 from forms.MainForm import MainForm
@@ -26,9 +27,15 @@ if __name__ == '__main__':
     if CONFIGURATION is ConfigurationMode.RELEASE:
         os.system('cls')  # For Release
 
-    print_i("Run app ...")
+    # region Lang installation
+    lang = gettext.translation('base', localedir='locales', languages=['ru'])
+    lang.install()
+    _ = lang.gettext
+    # endregion
 
-    for _dir in ['logs']:
+    print_i(_("Run app ..."))
+
+    for _dir in ['logs', 'data']:
         if not os.path.exists(_dir):
             os.makedirs(_dir)
 

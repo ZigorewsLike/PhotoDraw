@@ -10,6 +10,10 @@ class Point:
         self.y = float(y)
         self.scale_val = 1
 
+    @classmethod
+    def from_qt(cls, point: QPoint):
+        return cls(point.x(), point.y())
+
     def __add__(self, other):
         if type(other) != Point:
             return Point(self.x + other, self.y + other)
@@ -70,16 +74,13 @@ class Point:
         self.y = float(point.y())
 
     def qt(self):
-        return QPoint(self.x, self.y)
+        return QPoint(self.ix, self.iy)
 
     # Length between points
     def lbp(self, other):
         return sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
 
     def to_list(self):
-        return [self.x, self.y]
-
-    def to_list_2d(self):
         return [self.x, self.y]
 
     def scale(self, val):

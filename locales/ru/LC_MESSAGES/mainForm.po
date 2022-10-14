@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "OpenFileMenu"
+msgstr "Открыть файл"
+
+msgid "FilterImages"
+msgstr "Все изображения"
+
+msgid "FilterAll"
+msgstr "Все файлы"
+
+msgid "OpenFileTitle"
+msgstr "Открыть файл ..."
+
