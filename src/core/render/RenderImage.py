@@ -4,7 +4,8 @@ import cv2
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QImage
 
-from src.function_lib import np_to_qt_image, array_to_8bit
+from src.core.point_system import CRect, Point
+from src.function_lib import np_to_qt_image, get_part
 
 
 class RenderImage:
@@ -14,8 +15,11 @@ class RenderImage:
         self.size: QSize = QSize()
         self.original_image: np.ndarray = np.array([])
         self.buffer: np.ndarray = np.array([])
+        self.buffer_size: CRect = CRect(0, 0, 500, 500)
         self.qt_image: QImage = QImage()
-        self.scale_factor: float = 0.0
+        self.camera_scale_factor: float = 1.0
+        self.scale_factor: float = 1.0
+        self.scale_ratio: int = 1
         self.image_format: QImage.Format = QImage.Format_RGB888
 
         if path:
@@ -31,18 +35,40 @@ class RenderImage:
         self.size.setWidth(width)
         self.size.setHeight(height)
 
-        self.qt_image = np_to_qt_image(self.original_image, self.image_format)
+        self.buffer = get_part(self.buffer_size, self.original_image, self.scale_factor, self.scale_ratio)
+        self.qt_image = np_to_qt_image(self.buffer, self.image_format)
+        # image_width = int(self.buffer.shape[1] * self.scale_factor)
+        # image_height = int(self.buffer.shape[0] * self.scale_factor)
+        # self.qt_image = self.qt_image.scaled(image_width, image_height, Qt.KeepAspectRatioByExpanding,
+        #                                      Qt.FastTransformation)
 
         self.is_valid = True
 
-    def update_image(self, scale_val: Optional[float] = None):
+    def scale_buffer(self, scale_val: Optional[float] = None):
         if scale_val is None:
             scale_val = self.scale_factor
-        image_width = int(self.size.width() * scale_val)
-        image_height = int(self.size.height() * scale_val)
-        self.qt_image = np_to_qt_image(self.original_image, self.image_format)
-        self.qt_image = self.qt_image.scaled(image_width, image_height, Qt.KeepAspectRatioByExpanding,
-                                             Qt.FastTransformation)
+        else:
+            self.camera_scale_factor = scale_val
+            # self.scale_ratio = max(1, int(self.size.width() // (self.size.width() * self.camera_scale_factor)))
+            self.scale_factor = self.camera_scale_factor / self.scale_ratio
+        self.update_buffer()
+
+    def update_buffer(self, camera_pos: Optional[Point] = None):
+        if camera_pos is not None:
+            self.buffer_size.shift(-camera_pos)
+
+        self.buffer = get_part(self.buffer_size, self.original_image, self.scale_factor, self.scale_ratio)
+        image_width = int(self.buffer.shape[1] * self.scale_factor)
+        image_height = int(self.buffer.shape[0] * self.scale_factor)
+        if image_height > 0 and image_width > 0:
+            # TODO: Slows down in full screen mode (4k).
+            self.buffer = cv2.resize(self.buffer, (image_width, image_height), interpolation=cv2.INTER_AREA)
+
+        self.qt_image = np_to_qt_image(self.buffer, self.image_format)
+
+        # self.qt_image = self.qt_image.scaled(image_width, image_height, Qt.IgnoreAspectRatio,
+        #                                      Qt.FastTransformation)
+
 
 
 

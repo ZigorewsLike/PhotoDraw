@@ -120,6 +120,8 @@ class MainForm(QMainWindow):
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
 
         self.render_frame.setGeometry(*self.work_area)
+        self.render_image.buffer_size = self.work_area.copy()
+        self.update()
 
     def update(self) -> None:
         super(MainForm, self).update()
@@ -148,7 +150,7 @@ class MainForm(QMainWindow):
             scale_val = self.camera.scale_factor
         else:
             self.camera.scale_factor = scale_val
-        self.render_image.update_image(scale_val)
+        self.render_image.scale_buffer(scale_val)
         self.label_camera_scale.setText(f"Scale: {round(scale_val * 100)}%")
         self.update()
 
@@ -172,6 +174,7 @@ class MainForm(QMainWindow):
 
     def open_file(self, path: str) -> None:
         self.render_image.init_image(path)
+        self.update()
         self.camera.reset()
 
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
