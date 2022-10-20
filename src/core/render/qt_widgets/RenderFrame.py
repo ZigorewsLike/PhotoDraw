@@ -37,11 +37,10 @@ class RenderFrame(QOpenGLWidget):
             if self.mf.camera.mode is CameraModes.MOVE:
                 new_pos: Point = Point.from_qt(event.pos() - self.mf.camera.event_position +
                                                self.mf.camera.fix_position)
-
                 self.mf.camera.position = new_pos
                 self.mf.camera.shift_position = self.mf.camera.position.copy()
-                self.mf.render_image.update_buffer(self.mf.camera.position)
-                self.mf.update()
+                self.mf.update_buffer(self.mf.camera.position)
+                self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self.mouse_press = False
@@ -57,6 +56,7 @@ class RenderFrame(QOpenGLWidget):
         # !! OpenGL Warning
         # !! State changes are expensive, so make sure you batch the operations that use the same pen/brush etc. !!
         painter = QPainter(self)
+        # painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(0, 0, self.width(), self.height(), QBrush(QColor("#111111")))
 
         if self.mf.render_image.is_valid:

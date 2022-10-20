@@ -1,6 +1,7 @@
 import gc
 import gettext
 import os
+import sys
 import tracemalloc
 from typing import Optional
 
@@ -9,10 +10,10 @@ from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QI
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog
 
 # region src imports
-from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL
+from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE
 from src.core.point_system import Point, CRect
-from src.core.log import print_i, print_e, print_d
-from src.core.render import RenderFrame, RenderImage, Camera
+from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
+from src.core.render import RenderFrame, RenderImage, Camera, PixmapIconEngine
 # endregion
 
 
@@ -55,7 +56,7 @@ class MainForm(QMainWindow):
 
         self.params = params
         self.form_position: Point = Point(-1., -1.)
-        self.form_size = QSize(1200, 700)
+        self.form_size = QSize(1200, 900)
         self.size_collector = SizeCollector()
 
         self.init_ui()
@@ -76,6 +77,11 @@ class MainForm(QMainWindow):
         self.render_frame = RenderFrame(self)
         self.render_frame.setGeometry(*self.work_area)
 
+        self.console = ConsoleWidget()
+        sys.stdout.widget_print.connect(self.console.print_text)
+        self.console.setParent(self)
+        self.console.setVisible(LOG_SHOW_CONSOLE)
+
         self.label_ram_memory = QLabel("RAM: ...", self)
         self.label_ram_memory.setObjectName("StatusBarLabel")
 
@@ -88,6 +94,14 @@ class MainForm(QMainWindow):
         self.label_camera_scale = QLabel("Scale: 100%", self)
         self.label_camera_scale.setObjectName("StatusBarLabel")
 
+        self.widget_error_count = StatusBarLogElement(self.resource_icon_dir + "baseline_error_white_24dp.png", "0",
+                                                      self)
+        self.widget_error_count.color = QColor("#00FE35")
+
+        self.widget_warning_count = StatusBarLogElement(self.resource_icon_dir + "baseline_error_white_24dp.png", "0",
+                                                        self)
+        self.widget_warning_count.color = QColor("#FFFF4E")
+
         self.usage_timer = QTimer(self)
         self.usage_timer.timeout.connect(self.get_ram_usage)
         self.usage_timer.start(USAGE_TIMER_TICK_INTERVAL)
@@ -98,6 +112,9 @@ class MainForm(QMainWindow):
         self.status_bar.addWidget(self.label_image_size)
         self.status_bar.addWidget(self.label_camera_scale)
         self.status_bar.addWidget(self.label_ram_memory)
+
+        self.status_bar.addPermanentWidget(self.widget_error_count)
+        self.status_bar.addPermanentWidget(self.widget_warning_count)
         # endregion
 
         print_d(self.work_area)
@@ -115,13 +132,19 @@ class MainForm(QMainWindow):
 
     def resizeEvent(self, e: QResizeEvent) -> None:
         super(MainForm, self).resizeEvent(e)
+        self.recalculate_size()
 
+    def recalculate_size(self):
         self.work_area.right = self.width() - self.size_collector.correction_panel
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
 
         self.render_frame.setGeometry(*self.work_area)
         self.render_image.buffer_size = self.work_area.copy()
-        self.update()
+
+        self.console.move(self.work_area.left, self.height() - self.size_collector.footer_panel - self.console.height())
+        self.console.resize(int(self.work_area.width), self.console.height())
+
+        self.update_buffer()
 
     def update(self) -> None:
         super(MainForm, self).update()
@@ -141,9 +164,24 @@ class MainForm(QMainWindow):
 
         file_menu.addAction(open_file)
 
+        help_menu = menu_bar.addMenu("dev")
+
+        console = QAction("Console", self)
+        console.triggered.connect(lambda: self.open_console())
+        console.setShortcut(QKeySequence(Qt.Key_F12))
+
+        help_menu.addAction(console)
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_O:
             self.open_file_dialog()
+
+    def update_buffer(self, camera_pos: Optional[Point] = None):
+        if camera_pos is None:
+            camera_pos = self.camera.position
+        for layer in [self.render_image]:
+            layer: RenderImage
+            layer.update_buffer(camera_pos)
 
     def scale_image(self, scale_val: Optional[float] = None) -> None:
         if scale_val is None:
@@ -161,6 +199,20 @@ class MainForm(QMainWindow):
             f"RAM: {round(current / 10 ** 6)}Mb"
         )
         self.label_ram_memory.adjustSize()
+
+    @pyqtSlot()
+    def open_console(self):
+        if not self.console.isVisible():
+            self.console.show()
+        else:
+            self.console.close()
+        self.recalculate_size()
+        print_d("OPEN Console", self.console.isVisible())
+
+    @pyqtSlot()
+    def update_console_counter(self):
+        self.widget_error_count.text.setText(str(self.console.counter.get("ERROR", 0)))
+        self.widget_warning_count.text.setText(str(self.console.counter.get("WARNING", 1)))
 
     @pyqtSlot()
     def open_file_dialog(self) -> None:

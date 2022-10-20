@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    app.setStyle("Fusion")
 
     screen = app.primaryScreen()
     size = screen.size()
