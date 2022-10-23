@@ -9,6 +9,7 @@ class Camera:
         self.position: Point = Point(0, 0)
         self.fix_position: QPoint = QPoint(0, 0)
         self.shift_position: Point = Point(0, 0)
+        self.fix_position: QPoint = QPoint(0, 0)
         self.event_position: QPoint = QPoint(0, 0)
         self.scale_factor: float = 1.0
         self.mode: CameraModes = CameraModes.MOVE
@@ -16,4 +17,4 @@ class Camera:
     def reset(self):
         self.position = Point(0, 0)
         self.fix_position = QPoint(0, 0)
-        self.event_position = QPoint(0, 0)
+        self.fix_position = QPoint(0, 0)

@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFi
 # region src imports
 from PyQt5.QtWinExtras import QWinTaskbarProgress
 
+from src.function_lib import median
 from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE
 from src.core.point_system import Point, CRect
 from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
@@ -187,12 +188,32 @@ class MainForm(QMainWindow):
             layer.update_buffer(camera_pos)
 
     def scale_image(self, scale_val: Optional[float] = None) -> None:
-        if scale_val is None:
-            scale_val = self.camera.scale_factor
-        else:
+
+        old_width = self.render_image.size.width() * self.camera.scale_factor
+        old_height = self.render_image.size.height() * self.camera.scale_factor
+
+        if scale_val is not None:
             self.camera.scale_factor = scale_val
-        self.render_image.scale_buffer(scale_val)
-        self.label_camera_scale.setText(f"Scale: {round(scale_val * 100)}%")
+
+            print_d(self.render_image.scale_factor, self.render_image.buffer_size.width / self.render_frame.width())
+
+            calc_width: int = int(self.render_image.buffer.shape[1] / self.render_image.scale_factor)
+            calc_height: int = int(self.render_image.buffer.shape[0] / self.render_image.scale_factor)
+            # Ratio is the upper left normalised position
+            # TODO: Move to the center of the screen (if buffer.size < frame.size)
+            ratio: Point = Point((max(0, self.render_image.buffer_size.left) +
+                                  median(max(0, -self.render_image.buffer_size.left),
+                                         self.camera.event_position.x(), calc_width)) / old_width,
+                                 (self.render_image.buffer_size.top +
+                                  median(max(0, -self.render_image.buffer_size.top),
+                                         self.camera.event_position.y(), calc_height)) / old_height)
+
+            new_pos: Point = Point((old_width - self.render_image.size.width() * scale_val) * ratio.x,
+                                   (old_height - self.render_image.size.height() * scale_val) * ratio.y)
+            self.camera.position += new_pos
+
+        self.render_image.scale_buffer(self.camera.scale_factor, self.camera.position)
+        self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
         self.update()
 
     @pyqtSlot()
@@ -228,9 +249,10 @@ class MainForm(QMainWindow):
             self.open_file(filename)
 
     def open_file(self, path: str) -> None:
-        self.render_image.init_image(path)
-        self.update()
         self.camera.reset()
+        self.render_image.init_image(path)
+        self.camera.scale_factor = self.render_image.camera_scale_factor
+        self.update_buffer(self.camera.position)
 
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
 

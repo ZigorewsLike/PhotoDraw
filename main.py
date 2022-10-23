@@ -48,7 +48,7 @@ if __name__ == '__main__':
     curr_dpi = round(w_phys * default_pdi / w_curr, 0)
 
     # TODO: The scale of rendering the image with HighDPI has wrong value.
-    # os.environ["QT_SCALE_FACTOR"] = str(curr_dpi / default_pdi)
+    os.environ["QT_SCALE_FACTOR"] = str(curr_dpi / default_pdi)
     os.environ["QT_FONT_DPI"] = "96"
     # endregion
 
