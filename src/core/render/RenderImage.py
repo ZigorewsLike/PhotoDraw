@@ -17,6 +17,8 @@ class RenderImage:
         self.original_image: np.ndarray = np.array([])
         self.buffer: np.ndarray = np.array([])
         self.buffer_size: CRect = CRect(0, 0, 500, 500)
+        self.shift_pos: Point = Point(self.buffer_size.width,
+                                      self.buffer_size.height)
         self.qt_image: QImage = QImage()
         self.camera_scale_factor: float = 1.0
         self.scale_factor: float = 1.0
@@ -36,7 +38,7 @@ class RenderImage:
         self.size.setWidth(width)
         self.size.setHeight(height)
 
-        self.buffer = get_part(self.buffer_size, self.original_image, self.scale_factor, self.scale_ratio)
+        self.buffer = get_part(self.buffer_size, self.original_image, self.camera_scale_factor, self.scale_ratio)
         self.qt_image = np_to_qt_image(self.buffer, self.image_format)
         # image_width = int(self.buffer.shape[1] * self.scale_factor)
         # image_height = int(self.buffer.shape[0] * self.scale_factor)
@@ -46,36 +48,37 @@ class RenderImage:
         self.is_valid = True
 
     def scale_buffer(self, scale_val: Optional[float] = None):
-        if scale_val is None:
-            scale_val = self.scale_factor
-        else:
+        if scale_val is not None:
             self.camera_scale_factor = scale_val
             self.scale_ratio = max(1, int(self.size.width() // (self.size.width() * self.camera_scale_factor)))
-            self.scale_factor = self.camera_scale_factor / self.scale_ratio
+            # self.scale_factor = self.camera_scale_factor / self.scale_ratio
+            self.scale_factor = float((self.size.width() * scale_val) / (self.size.width() / self.scale_ratio))
         self.update_buffer()
+        print_d(self.buffer_size.width, self.buffer_size.height, self.buffer_size)
+        print_d(self.buffer.shape)
 
     def update_buffer(self, camera_pos: Optional[Point] = None):
         if self.is_valid:
             if camera_pos is not None:
-                camera_pos = camera_pos.copy()
+                self.shift_pos = camera_pos.copy()
                 # if camera_pos.y < 0:
                 #     camera_pos.y /= self.scale_ratio
                 self.buffer_size.shift(-camera_pos)
 
-            self.buffer = get_part(self.buffer_size, self.original_image, self.scale_factor, self.scale_ratio)
+            self.buffer = get_part(self.buffer_size, self.original_image, self.camera_scale_factor, self.scale_ratio)
             # image_width = int(self.buffer.shape[1] * self.camera_scale_factor * self.scale_ratio)
             image_width = int(self.buffer.shape[1] * self.scale_factor)
             # image_height = int(self.buffer.shape[0] * self.camera_scale_factor * self.scale_ratio)
             image_height = int(self.buffer.shape[0] * self.scale_factor)
             if image_height > 0 and image_width > 0:
                 # TODO: Slows down in full screen mode (4k).
-                # self.buffer = cv2.resize(self.buffer, (image_width, image_height), interpolation=cv2.INTER_NEAREST)
+                self.buffer = cv2.resize(self.buffer, (image_width, image_height), interpolation=cv2.INTER_NEAREST)
                 pass
 
             self.qt_image = np_to_qt_image(self.buffer, self.image_format)
 
-            self.qt_image = self.qt_image.scaled(image_width, image_height, Qt.IgnoreAspectRatio,
-                                                 Qt.FastTransformation)
+            # self.qt_image = self.qt_image.scaled(image_width, image_height, Qt.IgnoreAspectRatio,
+            #                                      Qt.FastTransformation)
 
 
 

@@ -10,6 +10,8 @@ from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QI
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog
 
 # region src imports
+from PyQt5.QtWinExtras import QWinTaskbarProgress
+
 from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE
 from src.core.point_system import Point, CRect
 from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
@@ -139,7 +141,8 @@ class MainForm(QMainWindow):
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
 
         self.render_frame.setGeometry(*self.work_area)
-        self.render_image.buffer_size = self.work_area.copy()
+        self.render_image.buffer_size = CRect(0, 0, self.render_frame.width(), self.render_frame.height())
+        self.update_buffer(self.camera.position)
 
         self.console.move(self.work_area.left, self.height() - self.size_collector.footer_panel - self.console.height())
         self.console.resize(int(self.work_area.width), self.console.height())
