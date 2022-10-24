@@ -3,13 +3,15 @@ import os
 import sys
 
 from PyQt5 import QtWidgets, QtCore
+import gettext
 
 # region Forms imports
 from forms.MainForm import MainForm
 # endregion
 
 # region src imports
-from core.log import print_i, print_e, print_d
+from src.global_constants import APP_NAME, CONFIGURATION, ConfigurationMode
+from src.core.log import print_i, print_e, print_d
 from src.core.log import except_hook, OutputBuffer
 # endregion
 
@@ -18,14 +20,22 @@ tracemalloc.start(1)
 
 
 if __name__ == '__main__':
+
     # std overwrite
     sys.excepthook = except_hook
     sys.stdout = OutputBuffer()
-    os.system('cls')  # For Build
+    if CONFIGURATION is ConfigurationMode.RELEASE:
+        os.system('cls')  # For Release
 
-    print_i("Run app ...")
+    # region Lang installation
+    lang = gettext.translation('base', localedir='locales', languages=['ru'])
+    lang.install()
+    _ = lang.gettext
+    # endregion
 
-    for _dir in ['logs']:
+    print_i(_("Run app ..."))
+
+    for _dir in ['logs', 'data']:
         if not os.path.exists(_dir):
             os.makedirs(_dir)
 
@@ -37,12 +47,14 @@ if __name__ == '__main__':
     w_phys = user32.GetSystemMetrics(0)
     curr_dpi = round(w_phys * default_pdi / w_curr, 0)
 
+    # TODO: The scale of rendering the image with HighDPI has wrong value.
     os.environ["QT_SCALE_FACTOR"] = str(curr_dpi / default_pdi)
     os.environ["QT_FONT_DPI"] = "96"
     # endregion
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("PhotoDraw")
+    app.setApplicationName(APP_NAME)
+    app.setStyle("Fusion")
 
     screen = app.primaryScreen()
     size = screen.size()
