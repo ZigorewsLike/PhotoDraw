@@ -4,7 +4,10 @@ from enums.ConfigurationMode import ConfigurationMode
 # region Auto detect configuration from env vars
 _conf = os.environ.get("CONFIGURATION", None)
 if _conf is not None:
-    CONFIGURATION = ConfigurationMode.DEBUG
+    if _conf == "DEBUG":
+        CONFIGURATION = ConfigurationMode.DEBUG
+    else:
+        CONFIGURATION = ConfigurationMode.RELEASE
 else:
     CONFIGURATION = ConfigurationMode.RELEASE
 # endregion

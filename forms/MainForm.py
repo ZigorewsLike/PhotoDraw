@@ -6,17 +6,19 @@ import tracemalloc
 from typing import Optional
 
 from PyQt5.QtCore import QRect, QRectF, pyqtSlot, QTimer, QSize, Qt, QPoint
-from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent
+from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog
 
 # region src imports
 from PyQt5.QtWinExtras import QWinTaskbarProgress
 
 from src.function_lib import median
-from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE
+from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG
 from src.core.point_system import Point, CRect
 from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
-from src.core.render import RenderFrame, RenderImage, Camera, PixmapIconEngine
+from src.core.render import RenderFrame, RenderImage, Camera
+
+
 # endregion
 
 
@@ -25,11 +27,13 @@ class SizeCollector:
     # left panel
     draw_toolbar_panel: int = 0
     # top panel
-    menu_toolbar_panel: int = 30
+    menu_toolbar_panel: int = 20
     # right panel
     correction_panel: int = 0
     # bottom panel
     footer_panel: int = 20
+
+
 # endregion
 
 
@@ -37,6 +41,8 @@ class SizeCollector:
 lang = gettext.translation('mainForm', localedir='locales', languages=['ru'])
 lang.install()
 _ = lang.gettext
+
+
 # endregion
 
 
@@ -133,6 +139,9 @@ class MainForm(QMainWindow):
 
         self.setWindowTitle(f"{APP_NAME} | {CONFIGURATION.name}")
 
+    def showEvent(self, event: QShowEvent) -> None:
+        self.render_frame.show_scroll_bars(False)
+
     def resizeEvent(self, e: QResizeEvent) -> None:
         super(MainForm, self).resizeEvent(e)
         self.recalculate_size()
@@ -144,6 +153,8 @@ class MainForm(QMainWindow):
         self.render_frame.setGeometry(*self.work_area)
         self.render_image.buffer_size = CRect(0, 0, self.render_frame.width(), self.render_frame.height())
         self.update_buffer(self.camera.position)
+
+        self.render_frame.scroll_value_update(update_max=True)
 
         self.console.move(self.work_area.left, self.height() - self.size_collector.footer_panel - self.console.height())
         self.console.resize(int(self.work_area.width), self.console.height())
@@ -180,6 +191,25 @@ class MainForm(QMainWindow):
         if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_O:
             self.open_file_dialog()
 
+    # region Buffer functions
+    def adjust_camera_position(self):
+        return
+        # print_d(self.render_image.size.width() * self.camera.scale_factor, self.render_image.buffer.shape, self.camera.scale_factor)
+        # sub = (self.render_image.buffer.shape[1] - self.render_frame.width()) / self.render_image.scale_factor
+        # print_d(sub)
+        # print_d(self.render_image.size.width() * self.camera.scale_factor - self.render_image.buffer.shape[1], '\n')
+
+        # if self.camera.free_control:
+        #     self.camera.position.x = median(-(self.render_image.size.width() * self.camera.scale_factor +
+        #                                       self.camera.limit - self.render_frame.width()),
+        #                                     self.camera.position.x,
+        #                                     self.camera.limit)
+        #     self.camera.position.y = median(-(self.render_image.size.height() * self.camera.scale_factor +
+        #                                       self.camera.limit - self.render_frame.height()),
+        #                                     self.camera.position.y,
+        #                                     self.camera.limit)
+        pass
+
     def update_buffer(self, camera_pos: Optional[Point] = None):
         if camera_pos is None:
             camera_pos = self.camera.position
@@ -195,26 +225,44 @@ class MainForm(QMainWindow):
         if scale_val is not None:
             self.camera.scale_factor = scale_val
 
-            print_d(self.render_image.scale_factor, self.render_image.buffer_size.width / self.render_frame.width())
+            calc_width: int = int(self.render_image.size.width() * self.camera.scale_factor)
+            calc_height: int = int(self.render_image.size.height() * self.camera.scale_factor)
 
-            calc_width: int = int(self.render_image.buffer.shape[1] / self.render_image.scale_factor)
-            calc_height: int = int(self.render_image.buffer.shape[0] / self.render_image.scale_factor)
-            # Ratio is the upper left normalised position
-            # TODO: Move to the center of the screen (if buffer.size < frame.size)
-            ratio: Point = Point((max(0, self.render_image.buffer_size.left) +
-                                  median(max(0, -self.render_image.buffer_size.left),
-                                         self.camera.event_position.x(), calc_width)) / old_width,
-                                 (self.render_image.buffer_size.top +
-                                  median(max(0, -self.render_image.buffer_size.top),
-                                         self.camera.event_position.y(), calc_height)) / old_height)
+            print_d(calc_width, calc_height)
+            print_d(self.render_frame.width(), self.render_frame.height())
 
-            new_pos: Point = Point((old_width - self.render_image.size.width() * scale_val) * ratio.x,
-                                   (old_height - self.render_image.size.height() * scale_val) * ratio.y)
-            self.camera.position += new_pos
+            if calc_width < self.render_frame.width() and calc_height < self.render_frame.height():
+                self.camera.free_control = False
+                self.camera.position = Point((self.render_frame.width() - calc_width) / 2,
+                                             (self.render_frame.height() - calc_height) / 2)
+            else:
+                self.camera.free_control = True
 
-        self.render_image.scale_buffer(self.camera.scale_factor, self.camera.position)
-        self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
+                # Ratio is the upper left normalised position
+                ratio: Point = Point((max(0, self.render_image.buffer_size.left) +
+                                      self.camera.event_position.x()) / old_width,
+                                     (self.render_image.buffer_size.top +
+                                      self.camera.event_position.y()) / old_height)
+
+                new_pos: Point = Point((old_width - self.render_image.size.width() * scale_val) * ratio.x,
+                                       (old_height - self.render_image.size.height() * scale_val) * ratio.y)
+                self.camera.position += new_pos
+            self.render_frame.show_scroll_bars(self.camera.free_control)
+            self.render_frame.scroll_value_update(update_max=True)
+            self.render_frame.scroll_value_update()
+
+        self.render_image.scale_buffer(self.camera.scale_factor, update_buffer=False)
+        if DEBUG:
+            self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor, 2)} | "
+                                            f"{round(self.render_image.scale_factor, 2)}")
+        else:
+            self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
+
+        self.update_buffer(self.camera.position)
+
         self.update()
+
+    # endregion
 
     @pyqtSlot()
     def get_ram_usage(self):
@@ -240,6 +288,7 @@ class MainForm(QMainWindow):
 
     @pyqtSlot()
     def open_file_dialog(self) -> None:
+
         dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *tif *tiff);;" \
                         f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
                         f"{_('FilterAll')} (*.*)"
@@ -251,9 +300,14 @@ class MainForm(QMainWindow):
     def open_file(self, path: str) -> None:
         self.camera.reset()
         self.render_image.init_image(path)
-        self.camera.scale_factor = self.render_image.camera_scale_factor
-        self.update_buffer(self.camera.position)
+
+        normal_scale = min(self.render_image.buffer_size.width / self.render_image.size.width(),
+                           self.render_image.buffer_size.height / self.render_image.size.height())
+
+        self.camera.scale_step = 1 / (normal_scale / 1000)
+        self.scale_image(normal_scale - 0.01)
 
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
+        self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
 
         gc.collect()
