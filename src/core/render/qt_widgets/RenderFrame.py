@@ -38,14 +38,14 @@ class RenderFrame(QOpenGLWidget):
 
         self.vertical_scroll_bar = QScrollBar(self)
         self.vertical_scroll_bar.setMaximum(100)
-        self.vertical_scroll_bar.setMinimum(10)
-        self.vertical_scroll_bar.setValue(40)
+        self.vertical_scroll_bar.setMinimum(0)
+        self.vertical_scroll_bar.setValue(0)
         self.vertical_scroll_bar.valueChanged.connect(self.vertical_scroll_change)
 
         self.horizontal_scroll_bar = QScrollBar(Qt.Horizontal, self)
         self.horizontal_scroll_bar.setMaximum(100)
-        self.horizontal_scroll_bar.setMinimum(10)
-        self.horizontal_scroll_bar.setValue(40)
+        self.horizontal_scroll_bar.setMinimum(0)
+        self.horizontal_scroll_bar.setValue(0)
         self.horizontal_scroll_bar.valueChanged.connect(self.horizontal_scroll_change)
 
         self.empty_rect = QWidget(self)
@@ -64,7 +64,6 @@ class RenderFrame(QOpenGLWidget):
 
     # region ScrollBar functions
     def show_scroll_bars(self, visible: bool = True) -> None:
-        print_i("CALL")
         if self.vertical_scroll_bar.isVisible() != visible:
             self.vertical_scroll_bar.setVisible(visible)
             self.horizontal_scroll_bar.setVisible(visible)
@@ -81,7 +80,8 @@ class RenderFrame(QOpenGLWidget):
                     int(self.mf.render_image.size.height() * self.mf.camera.scale_factor - self.height()))
                 self.horizontal_scroll_bar.setMaximum(
                     int(self.mf.render_image.size.width() * self.mf.camera.scale_factor - self.width()))
-        print_d(self.vertical_scroll_bar.value())
+                self.vertical_scroll_bar.setMinimum(0)
+                self.horizontal_scroll_bar.setMinimum(0)
 
     @pyqtSlot()
     def vertical_scroll_change(self):
@@ -110,7 +110,8 @@ class RenderFrame(QOpenGLWidget):
             if self.mf.render_image.is_valid:
                 if self.mf.camera.mode is CameraModes.MOVE:
                     self.mf.camera.fix_position = event.pos() - self.mf.camera.position.qt()
-                    self.mf.render_image.buffer_settings.render_scale = 2
+                    if self.mf.camera.scale_factor < 1.0:
+                        self.mf.render_image.buffer_settings.render_scale = 2
                     self.mf.render_image.scale_buffer()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -142,6 +143,12 @@ class RenderFrame(QOpenGLWidget):
         # !! State changes are expensive, so make sure you batch the operations that use the same pen/brush etc. !!
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(0x01)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+
+        # painter.scale(0.75, 0.75)
+
         painter.fillRect(0, 0, self.width(), self.height(), QBrush(QColor("#111111")))
 
         if self.mf.render_image.is_valid:

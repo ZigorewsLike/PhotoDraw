@@ -228,9 +228,6 @@ class MainForm(QMainWindow):
             calc_width: int = int(self.render_image.size.width() * self.camera.scale_factor)
             calc_height: int = int(self.render_image.size.height() * self.camera.scale_factor)
 
-            print_d(calc_width, calc_height)
-            print_d(self.render_frame.width(), self.render_frame.height())
-
             if calc_width < self.render_frame.width() and calc_height < self.render_frame.height():
                 self.camera.free_control = False
                 self.camera.position = Point((self.render_frame.width() - calc_width) / 2,
