@@ -142,6 +142,7 @@ class RenderFrame(QOpenGLWidget):
         # !! OpenGL Warning
         # !! State changes are expensive, so make sure you batch the operations that use the same pen/brush etc. !!
         painter = QPainter(self)
+        painter.begin(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(0x01)
         painter.setRenderHint(QPainter.HighQualityAntialiasing)
@@ -170,6 +171,7 @@ class RenderFrame(QOpenGLWidget):
             text_rect = QRectF(self.width()//2 - 200, self.height()//2 - 20, 400, 40)
             # painter.drawRect(text_rect)
             painter.drawText(text_rect, "Открыть файл (Ctrl+O)", option)
+        painter.end()
 
     def wheelEvent(self, event: QWheelEvent):
         if self.mf.render_image.is_valid:

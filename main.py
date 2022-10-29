@@ -66,3 +66,4 @@ if __name__ == '__main__':
     # endregion
 
     app.exec_()
+    print_i("Safe exit")
