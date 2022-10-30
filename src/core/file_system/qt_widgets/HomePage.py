@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QWidget, QFrame, QPushButton, QLabel
 
 from src.global_constants import VERSION
 from .LastFileGrid import LastFileGrid
+from src.core.log import print_d
 
 if TYPE_CHECKING:
     from forms.MainForm import MainForm
@@ -14,10 +15,6 @@ class HomePage(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mf: Union[MainForm, QWidget] = self.parent()
-        "#001D3D"
-        "#003566"
-        "35313D"
-        "555366"
 
         self.setStyleSheet("""
         QLabel#Title{

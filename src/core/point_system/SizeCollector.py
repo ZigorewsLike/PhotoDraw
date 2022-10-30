@@ -3,7 +3,8 @@ from src.enums import StateMode
 
 class SizeCollector:
     left_panel: int = 0
-    top_panel: int = 20 + 40
+    top_panel: int = 20
+    toolbar_panel: int = 40
     right_panel: int = 0
     bottom_panel: int = 20
 
@@ -19,7 +20,10 @@ class SizeCollector:
 
     @property
     def menu_toolbar_panel(self) -> int:
-        return self.top_panel
+        if self.state is StateMode.WORK:
+            return self.top_panel + self.toolbar_panel
+        else:
+            return self.top_panel
 
     @property
     def correction_panel(self) -> int:

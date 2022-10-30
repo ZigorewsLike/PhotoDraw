@@ -26,3 +26,6 @@ CONSOLE_UPDATE_TICK_INTERVAL = 1000
 APP_NAME = "PhotoDraw"
 VERSION = "alpha 1.0.1"
 
+PATH_TO_LAST_FILES = "data/last.dat"
+PATH_TO_LAST_PREVIEW = "data/preview/"
+

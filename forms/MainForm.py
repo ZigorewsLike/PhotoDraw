@@ -3,7 +3,12 @@ import gettext
 import os
 import sys
 import tracemalloc
+from datetime import datetime
 from typing import Optional
+import pickle
+
+import numpy as np
+import cv2
 
 from PyQt5.QtCore import QRect, QRectF, pyqtSlot, QTimer, QSize, Qt, QPoint
 from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
@@ -12,12 +17,13 @@ from PyQt5.QtWinExtras import QWinTaskbarProgress
 
 # region src imports
 from src.function_lib import median
-from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG
+from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG, \
+    PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW
 from src.core.point_system import Point, CRect, SizeCollector
 from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
 from src.core.render import RenderFrame, RenderImage, Camera
 from src.enums import StateMode
-from src.core.file_system import HomePage
+from src.core.file_system import HomePage, LastFileContainer, LastFileProp
 
 # endregion
 
@@ -69,6 +75,17 @@ class MainForm(QMainWindow):
         self.render_image = RenderImage()
         self.camera = Camera()
         # endregion
+
+        try:
+            if os.path.exists(PATH_TO_LAST_FILES):
+                with open(PATH_TO_LAST_FILES, "rb") as f:
+                    self.last_files_props: LastFileContainer = pickle.load(f)
+            else:
+                raise FileNotFoundError("File last not found")
+        except Exception as e:
+            print_e(e)
+            self.last_files_props = LastFileContainer()
+        print_d(self.last_files_props.count)
 
         # region UI widgets
         self.create_menu_bars()
@@ -131,6 +148,7 @@ class MainForm(QMainWindow):
 
     def showEvent(self, event: QShowEvent) -> None:
         self.render_frame.show_scroll_bars(False)
+        self.home_page.last_grid.generate_grid(self.last_files_props.props)
 
     def resizeEvent(self, e: QResizeEvent) -> None:
         super(MainForm, self).resizeEvent(e)
@@ -160,6 +178,7 @@ class MainForm(QMainWindow):
         self.size_collector.state = self.state
         work_enabled = state is StateMode.HOME
         self.home_page.setVisible(work_enabled)
+        self.home_page.last_grid.generate_grid(self.last_files_props.props)
         self.recalculate_size()
 
     def update(self) -> None:
@@ -299,7 +318,7 @@ class MainForm(QMainWindow):
     @pyqtSlot()
     def update_console_counter(self):
         self.widget_error_count.text.setText(str(self.console.counter.get("ERROR", 0)))
-        self.widget_warning_count.text.setText(str(self.console.counter.get("WARNING", 1)))
+        # self.widget_warning_count.text.setText(str(self.console.counter.get("WARNING", 1)))
 
     @pyqtSlot()
     def open_file_dialog(self) -> None:
@@ -317,6 +336,7 @@ class MainForm(QMainWindow):
         self.set_state_mode(StateMode.WORK)
 
         self.render_image.init_image(path)
+        preview: np.ndarray = self.render_image.generate_preview()
 
         normal_scale = min(self.render_image.buffer_size.width / self.render_image.size.width(),
                            self.render_image.buffer_size.height / self.render_image.size.height())
@@ -328,5 +348,10 @@ class MainForm(QMainWindow):
 
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
         self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
+
+        file_item = LastFileProp(path, datetime.now())
+        self.last_files_props.add(file_item)
+        cv2.cvtColor(preview, cv2.COLOR_BGR2RGB, preview)
+        cv2.imwrite(f'{PATH_TO_LAST_PREVIEW}{file_item.hash_path}.jpg', preview)
 
         gc.collect()

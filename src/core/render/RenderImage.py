@@ -42,6 +42,19 @@ class RenderImage:
 
         self.is_valid = True
 
+    def generate_preview(self) -> np.ndarray:
+        preview_size: int = 200
+        scale: float = self.size.width() / self.size.height()
+        if self.size.width() > self.size.height():
+            width: int = preview_size
+            height: int = int(preview_size / scale)
+        else:
+            width: int = int(preview_size * scale)
+            height: int = preview_size
+        print_d(width, height)
+        preview = cv2.resize(self.original_image, (width, height), interpolation=cv2.INTER_CUBIC)
+        return preview
+
     def scale_buffer(self, scale_val: Optional[float] = None, camera_pos: Optional[Point] = None,
                      update_buffer: bool = True):
         if scale_val is not None:
