@@ -40,19 +40,29 @@ class RenderImage:
         self.size.setWidth(width)
         self.size.setHeight(height)
 
-        # FIXME: Vertical image
-        normal_scale = self.buffer_size.width / self.size.width()
-        self.scale_buffer(normal_scale)
-
         self.is_valid = True
 
-    def scale_buffer(self, scale_val: Optional[float] = None, camera_pos: Optional[Point] = None):
+    def generate_preview(self) -> np.ndarray:
+        preview_size: int = 200
+        scale: float = self.size.width() / self.size.height()
+        if self.size.width() > self.size.height():
+            width: int = preview_size
+            height: int = int(preview_size / scale)
+        else:
+            width: int = int(preview_size * scale)
+            height: int = preview_size
+        print_d(width, height)
+        preview = cv2.resize(self.original_image, (width, height), interpolation=cv2.INTER_CUBIC)
+        return preview
+
+    def scale_buffer(self, scale_val: Optional[float] = None, camera_pos: Optional[Point] = None,
+                     update_buffer: bool = True):
         if scale_val is not None:
             self.camera_scale_factor = scale_val
         self.scale_ratio = max(1, int(1 / self.camera_scale_factor)) * self.buffer_settings.render_scale
         self.scale_factor = float(self.camera_scale_factor * self.scale_ratio)
-        self.update_buffer(camera_pos)
-        print_d(self.camera_scale_factor, self.scale_ratio, self.scale_factor, self.buffer_settings.render_scale)
+        if update_buffer:
+            self.update_buffer(camera_pos)
 
     def update_buffer(self, camera_pos: Optional[Point] = None):
         if self.is_valid:
@@ -64,7 +74,6 @@ class RenderImage:
             image_width = int(self.buffer.shape[1] * self.scale_factor)
             image_height = int(self.buffer.shape[0] * self.scale_factor)
             if image_height > 0 and image_width > 0:
-                # TODO: Slows down in full screen mode (4k).
                 resampling = cv2.INTER_CUBIC if self.buffer_settings.resampling else cv2.INTER_NEAREST
                 self.buffer = cv2.resize(self.buffer, (image_width, image_height), interpolation=resampling)
                 pass

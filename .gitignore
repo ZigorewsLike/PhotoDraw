@@ -3,6 +3,7 @@
 
 # Project dirs
 logs
+data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -58,7 +59,7 @@ coverage.xml
 .pytest_cache/
 
 # Translations
-*.mo
+# *.mo  # FIXME: Uncomment
 *.pot
 
 # Django stuff:
@@ -135,4 +136,4 @@ dmypy.json
 .pyre/
 
 # PyCharm
-.idea
+# .idea

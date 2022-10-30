@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     print_i(_("Run app ..."))
 
-    for _dir in ['logs', 'data']:
+    for _dir in ['logs', 'data', 'data/preview']:
         if not os.path.exists(_dir):
             os.makedirs(_dir)
 
@@ -66,3 +66,4 @@ if __name__ == '__main__':
     # endregion
 
     app.exec_()
+    print_i("Safe exit")
