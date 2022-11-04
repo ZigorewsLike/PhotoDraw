@@ -6,3 +6,4 @@ PyQt5-Qt5==5.15.2
 PyQt5-sip==12.11.0
 PyQt5-stubs==5.15.6.0
 six==1.16.0
+pyopencl~=2022.2.4

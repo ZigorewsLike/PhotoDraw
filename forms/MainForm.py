@@ -10,20 +10,19 @@ import pickle
 import numpy as np
 import cv2
 
-from PyQt5.QtCore import QRect, QRectF, pyqtSlot, QTimer, QSize, Qt, QPoint
-from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
+from PyQt5.QtCore import pyqtSlot, QTimer, QSize, Qt
+from PyQt5.QtGui import QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog, QToolBar
-from PyQt5.QtWinExtras import QWinTaskbarProgress
 
-# region src imports
-from src.function_lib import median
+# region cl_files imports
 from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG, \
     PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW
 from src.core.point_system import Point, CRect, SizeCollector
-from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
-from src.core.render import RenderFrame, RenderImage, Camera
+from src.core.log import print_e, print_d, ConsoleWidget, StatusBarLogElement
+from src.core.render import RenderFrame, RenderImage, Camera, CorrectionSettings, ImageCorrection
 from src.enums import StateMode
 from src.core.file_system import HomePage, LastFileContainer, LastFileProp
+from core.gpu.cl import print_all_device_info, OPENCL_ENABLED
 
 # endregion
 
@@ -32,9 +31,10 @@ from src.core.file_system import HomePage, LastFileContainer, LastFileProp
 lang = gettext.translation('mainForm', localedir='locales', languages=['ru'])
 lang.install()
 _ = lang.gettext
-
-
 # endregion
+
+print_all_device_info()
+print_d(OPENCL_ENABLED)
 
 
 class MainForm(QMainWindow):
@@ -72,7 +72,9 @@ class MainForm(QMainWindow):
                                           self.height() - self.size_collector.footer_panel)
 
         # region Render vars
+        self.options: CorrectionSettings = CorrectionSettings()
         self.render_image = RenderImage()
+        self.render_image.options = self.options
         self.camera = Camera()
         # endregion
 
@@ -93,10 +95,8 @@ class MainForm(QMainWindow):
         self.render_frame = RenderFrame(self)
         self.render_frame.setGeometry(*self.work_area)
 
-        self.console = ConsoleWidget()
-        sys.stdout.widget_print.connect(self.console.print_text)  # noqa
-        self.console.setParent(self)
-        self.console.setVisible(LOG_SHOW_CONSOLE)
+        self.image_correction_widget = ImageCorrection(self, self)
+        self.image_correction_widget.options = self.options
 
         self.label_ram_memory = QLabel("RAM: ...", self)
         self.label_ram_memory.setObjectName("StatusBarLabel")
@@ -114,10 +114,6 @@ class MainForm(QMainWindow):
                                                       self)
         self.widget_error_count.color = QColor("#00FE35")
 
-        # self.widget_warning_count = StatusBarLogElement(self.resource_icon_dir + "baseline_error_white_24dp.png", "0",
-        #                                                 self)
-        # self.widget_warning_count.color = QColor("#FFFF4E")
-
         self.usage_timer = QTimer(self)
         self.usage_timer.timeout.connect(self.get_ram_usage)
         self.usage_timer.start(USAGE_TIMER_TICK_INTERVAL)
@@ -130,9 +126,13 @@ class MainForm(QMainWindow):
         self.status_bar.addWidget(self.label_ram_memory)
 
         self.status_bar.addPermanentWidget(self.widget_error_count)
-        # self.status_bar.addPermanentWidget(self.widget_warning_count)
 
         self.home_page = HomePage(self)
+
+        self.console = ConsoleWidget()
+        sys.stdout.widget_print.connect(self.console.print_text)  # noqa
+        self.console.setParent(self)
+        self.console.setVisible(LOG_SHOW_CONSOLE)
         # endregion
 
     def init_ui(self):
@@ -159,6 +159,8 @@ class MainForm(QMainWindow):
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
         self.work_area.left = self.size_collector.draw_toolbar_panel
         self.work_area.top = self.size_collector.menu_toolbar_panel
+
+        self.image_correction_widget.move(self.work_area.right, self.work_area.top)
 
         self.render_frame.setGeometry(*self.work_area)
         self.render_image.buffer_size = CRect(0, 0, self.render_frame.width(), self.render_frame.height())
@@ -345,6 +347,8 @@ class MainForm(QMainWindow):
             self.scale_image(normal_scale - 0.01)
         else:
             self.scale_image(1)
+
+        self.image_correction_widget.reset_options()
 
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
         self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")

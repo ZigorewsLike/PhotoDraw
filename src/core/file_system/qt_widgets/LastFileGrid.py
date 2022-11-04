@@ -37,6 +37,7 @@ class LastFileGrid(QWidget):
 
         self.item_count: int = 0
         self.col_count: int = 5
+        self.top_panel: int = 0
 
         self.grid_container: List[LastFileItem] = []
 
@@ -52,9 +53,12 @@ class LastFileGrid(QWidget):
         super().resizeEvent(event)
         self.call_resize()
 
+    def sort_container(self):
+        self.grid_container.sort(key=lambda x: x.prop.last_date, reverse=True)
+
     def generate_grid(self, props: List[LastFileProp]) -> None:
         self.item_count = len(props)
-        for i, widget in enumerate(reversed(self.grid_container)):
+        for i, widget in enumerate(self.grid_container):
             widget.deleteLater()
             self.grid_container.remove(widget)
         props.reverse()
@@ -64,6 +68,7 @@ class LastFileGrid(QWidget):
             widget.setVisible(True)
             self.grid_container.append(widget)
 
+        self.sort_container()
         self.call_resize()
         self.update()
 
@@ -72,9 +77,10 @@ class LastFileGrid(QWidget):
         widget_size: QSize = QSize(220, 260)
         loc_col_count: int = math.ceil(self.width() / widget_size.width()) - 1
         self.grid_frame.resize(min(loc_col_count * widget_size.width(), self.item_count * widget_size.width()),
-                               widget_size.height() * math.ceil(self.item_count / loc_col_count))
+                               widget_size.height() * math.ceil(self.item_count / loc_col_count) + self.top_panel)
         for i, widget in enumerate(self.grid_container):
-            widget.move(widget_size.width() * (i % loc_col_count), widget_size.height() * (i // loc_col_count))
+            widget.move(widget_size.width() * (i % loc_col_count),
+                        widget_size.height() * (i // loc_col_count) + self.top_panel)
 
     def update(self) -> None:
         super(LastFileGrid, self).update()

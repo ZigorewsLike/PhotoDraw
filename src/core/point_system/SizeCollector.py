@@ -5,7 +5,7 @@ class SizeCollector:
     left_panel: int = 0
     top_panel: int = 20
     toolbar_panel: int = 40
-    right_panel: int = 0
+    right_panel: int = 200
     bottom_panel: int = 20
 
     def __init__(self, state: StateMode = StateMode.HOME):

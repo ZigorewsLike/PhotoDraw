@@ -31,7 +31,8 @@ class LastFileContainer:
         if item not in self.props:
             self.props.append(item)
         else:
-            pass
+            old_item = self.props[self.props.index(item)]
+            old_item.last_date = datetime.now()
         self.save_to_file()
 
     def save_to_file(self):

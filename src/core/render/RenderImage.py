@@ -8,6 +8,8 @@ from src.core.log import print_d
 from src.core.point_system import CRect, Point
 from src.function_lib import np_to_qt_image, get_part
 from .BufferSettings import BufferSettings
+from src.core.gpu.cl import set_bright_contrast, OPENCL_ENABLED, set_levels
+from .CorrectionSettings import CorrectionSettings, CorrectionLevels
 
 
 class RenderImage:
@@ -26,6 +28,7 @@ class RenderImage:
         self.scale_factor: float = 1.0
         self.scale_ratio: int = 1
         self.image_format: QImage.Format = QImage.Format_RGB888
+        self.options: CorrectionSettings = CorrectionSettings()
 
         if path:
             self.init_image(path)
@@ -71,6 +74,19 @@ class RenderImage:
                 self.buffer_size.shift(-camera_pos)
 
             self.buffer = get_part(self.buffer_size, self.original_image, self.camera_scale_factor, self.scale_ratio)
+
+            # region Image correction
+            if self.options.bright != 1.0 or self.options.contrast != 255:
+                if OPENCL_ENABLED:
+                    self.buffer = set_bright_contrast(self.buffer, self.options.bright, self.options.contrast)
+                else:
+                    self.buffer = self.buffer * self.options.bright + (self.options.contrast - 255)
+
+            if self.options.levels != CorrectionLevels(0, 255):
+                self.buffer = self.options.levels.apply_correction(self.buffer, 0, 255)
+            self.buffer = self.buffer.astype(np.uint8)
+            # endregion
+
             image_width = int(self.buffer.shape[1] * self.scale_factor)
             image_height = int(self.buffer.shape[0] * self.scale_factor)
             if image_height > 0 and image_width > 0:
