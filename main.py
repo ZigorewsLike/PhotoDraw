@@ -9,7 +9,7 @@ import gettext
 from forms.MainForm import MainForm
 # endregion
 
-# region cl_files imports
+# region src imports
 from src.global_constants import APP_NAME, CONFIGURATION, ConfigurationMode
 from src.core.log import print_i, print_e, print_d
 from src.core.log import except_hook, OutputBuffer

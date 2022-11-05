@@ -58,9 +58,9 @@ class LastFileGrid(QWidget):
 
     def generate_grid(self, props: List[LastFileProp]) -> None:
         self.item_count = len(props)
-        for i, widget in enumerate(self.grid_container):
+        for i, widget in enumerate(reversed(self.grid_container)):
             widget.deleteLater()
-            self.grid_container.remove(widget)
+            self.grid_container.pop(len(self.grid_container) - 1)
         props.reverse()
         for i in range(self.item_count):
             widget = LastFileItem(props[i], self, self.grid_frame)
