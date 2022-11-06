@@ -339,6 +339,7 @@ class MainForm(QMainWindow):
         self.set_state_mode(StateMode.WORK)
 
         self.render_image.init_image(path)
+        self.render_image.get_unique_pixels()
         preview: np.ndarray = self.render_image.generate_preview()
 
         normal_scale = min(self.render_image.buffer_size.width / self.render_image.size.width(),

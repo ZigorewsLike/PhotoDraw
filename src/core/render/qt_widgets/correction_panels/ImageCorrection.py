@@ -31,8 +31,8 @@ class ImageCorrection(QWidget):
         self.levels_correction = LevelsCorrectionWidget(main_form, self)
 
         self.tabs = QTabWidget(self)
-        self.tabs.addTab(self.bright_correction, "Яркость и контраст")
         self.tabs.addTab(self.levels_correction, "Уровни")
+        self.tabs.addTab(self.bright_correction, "Яркость и контраст")
 
         self.levels_correction.move(0, self.bright_correction.height())
 

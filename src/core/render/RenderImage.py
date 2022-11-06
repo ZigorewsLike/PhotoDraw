@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Tuple
 import numpy as np
 import cv2
 from PyQt5.QtCore import QSize, Qt
@@ -30,6 +30,8 @@ class RenderImage:
         self.image_format: QImage.Format = QImage.Format_RGB888
         self.options: CorrectionSettings = CorrectionSettings()
 
+        self.unique_pixels: List[Tuple[np.ndarray, np.ndarray]] = []
+
         if path:
             self.init_image(path)
 
@@ -54,7 +56,6 @@ class RenderImage:
         else:
             width: int = int(preview_size * scale)
             height: int = preview_size
-        print_d(width, height)
         preview = cv2.resize(self.original_image, (width, height), interpolation=cv2.INTER_CUBIC)
         return preview
 
@@ -95,3 +96,14 @@ class RenderImage:
                 pass
 
             self.qt_image = np_to_qt_image(self.buffer, self.image_format)
+
+    def get_unique_pixels(self):
+        r = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 0], axis=0, return_counts=True)
+        if self.original_image.ndim == 3:
+            g = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 1], axis=0,
+                          return_counts=True)
+            b = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 2], axis=0,
+                          return_counts=True)
+            self.unique_pixels = [r, g, b]
+        else:
+            self.unique_pixels = [r]

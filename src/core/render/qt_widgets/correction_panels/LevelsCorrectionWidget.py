@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from src.core.render.CorrectionSettings import CorrectionSettings
 from src.enums import CorrectionResetItem
+from .GraphPanelLevels import GraphPanelLevels
 
 
 class LevelsCorrectionWidget(QWidget):
@@ -19,6 +20,9 @@ class LevelsCorrectionWidget(QWidget):
         self.mf: MainForm = main_form
 
         self.resize(200, 200)
+
+        self.paint_levels = GraphPanelLevels(self.mf, self)
+        self.paint_levels.setMinimumHeight(160)
 
         self.slider_min_v = QSlider(Qt.Horizontal, self)
         self.slider_min_v.setMaximum(255)
@@ -44,6 +48,7 @@ class LevelsCorrectionWidget(QWidget):
         self.slider_max_v.valueChanged.connect(self.apply_options)
 
         self.vbl = QVBoxLayout()
+        self.vbl.addWidget(self.paint_levels)
         self.vbl.addWidget(self.slider_min_v)
         self.vbl.addWidget(self.slider_mid_v)
         self.vbl.addWidget(self.slider_max_v)
