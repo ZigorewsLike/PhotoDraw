@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Tuple
+
+import numpy as np
 
 from PyQt5.QtCore import QLine, QPointF, Qt
 from PyQt5.QtGui import QPaintEvent, QPainter, QBrush, QColor, QPen
@@ -14,8 +16,15 @@ class GraphPanelBase(QWidget):
         # QColor("#A0A0A0")
         # self.colors = [QColor("#A03438"), QColor("#2546A0"), QColor("#2DA02D")]
         self.colors = [QColor("#FF0300"), QColor("#0010FF"), QColor("#00FF17")]
+        self.lines = List[Tuple[np.ndarray]]
 
-    # TODO: Buffer lines. Call function `calc line`, get normalized lines, draw as generator QPoinF
+    def set_polyline_list(self):
+        if self.mf.render_image.is_valid and self.mf.render_image.unique_pixels:
+            self.lines = []
+            for color_ind, unique in enumerate(self.mf.render_image.unique_pixels):
+                r_color, r_count = unique
+                self.lines.append((r_color / 256, r_count / r_count.max()))
+
     def paintEvent(self, event: QPaintEvent) -> None:
         if self.isVisible():
             painter = QPainter(self)
@@ -23,16 +32,15 @@ class GraphPanelBase(QWidget):
 
             if self.mf.render_image.is_valid and self.mf.render_image.unique_pixels:
                 painter.setCompositionMode(QPainter.CompositionMode_SoftLight)
-                for color_ind, unique in enumerate(self.mf.render_image.unique_pixels):
-                    r_color, r_count = unique
-                    scale_factor_w: float = self.width() / 255
-                    scale_factor_h: float = self.height() / r_count.max()
-                    lines: List[QPointF] = [QPointF(0, self.height())]
-                    for ind, color in enumerate(r_color):
-                        lines.append(QPointF(color * scale_factor_w, self.height() - r_count[ind] * scale_factor_h))
-                    lines.append(QPointF(self.width(), self.height()))
+                for color_ind, color_tuple in enumerate(self.lines):
                     painter.setPen(QPen(self.colors[color_ind], 0, Qt.SolidLine))
                     painter.setBrush(QBrush(self.colors[color_ind], Qt.SolidPattern))
+                    lines = [QPointF(0, self.height())]
+                    lines += [QPointF(color_tuple[0][i] * self.width(),
+                                      self.height() - color_tuple[1][i] * self.height())
+                              for i in range(color_tuple[0].size)]
+                    lines += [QPointF(self.width(), self.height())]
+
                     painter.drawPolygon(lines)
             painter.setCompositionMode(QPainter.CompositionMode_Source)
 

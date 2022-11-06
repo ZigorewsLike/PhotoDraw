@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 from PyQt5.QtGui import QImage
 
@@ -34,5 +36,11 @@ def array_to_8bit(array: np.ndarray, array_max: float, array_min: float = 0) -> 
     array[array > 255] = 255
     array[array < 0.0] = 0.0
     return array.astype(np.uint8)
+
+
+def get_unique(array: np.ndarray, channel: int) -> Tuple[np.ndarray, np.ndarray]:
+    counts = np.bincount(array[:, :, channel].flatten())
+    pos = np.array([i for i in range(array[:, :, channel].flatten().min(), array[:, :, channel].flatten().max())])
+    return pos, counts
 
 

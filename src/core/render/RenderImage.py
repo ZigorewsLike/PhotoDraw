@@ -6,7 +6,7 @@ from PyQt5.QtGui import QImage
 
 from src.core.log import print_d
 from src.core.point_system import CRect, Point
-from src.function_lib import np_to_qt_image, get_part
+from src.function_lib import np_to_qt_image, get_part, get_unique
 from .BufferSettings import BufferSettings
 from src.core.gpu.cl import set_bright_contrast, OPENCL_ENABLED, set_levels
 from .CorrectionSettings import CorrectionSettings, CorrectionLevels
@@ -98,12 +98,10 @@ class RenderImage:
             self.qt_image = np_to_qt_image(self.buffer, self.image_format)
 
     def get_unique_pixels(self):
-        r = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 0], axis=0, return_counts=True)
+        r = get_unique(self.original_image, 0)
         if self.original_image.ndim == 3:
-            g = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 1], axis=0,
-                          return_counts=True)
-            b = np.unique(self.original_image.reshape(-1, self.original_image.shape[-1])[:, 2], axis=0,
-                          return_counts=True)
+            g = get_unique(self.original_image, 1)
+            b = get_unique(self.original_image, 2)
             self.unique_pixels = [r, g, b]
         else:
             self.unique_pixels = [r]

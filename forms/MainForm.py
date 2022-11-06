@@ -340,6 +340,7 @@ class MainForm(QMainWindow):
 
         self.render_image.init_image(path)
         self.render_image.get_unique_pixels()
+        self.right_panel_widget.image_correction_widget.set_polyline_list()
         preview: np.ndarray = self.render_image.generate_preview()
 
         normal_scale = min(self.render_image.buffer_size.width / self.render_image.size.width(),

@@ -36,6 +36,9 @@ class ImageCorrection(QWidget):
 
         self.levels_correction.move(0, self.bright_correction.height())
 
+    def set_polyline_list(self):
+        self.levels_correction.paint_levels.set_polyline_list()
+
     def resizeEvent(self, event: QResizeEvent) -> None:
         super(ImageCorrection, self).resizeEvent(event)
         self.tabs.resize(self.width(), self.height())
