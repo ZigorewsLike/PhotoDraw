@@ -16,7 +16,7 @@ class LevelsCorrectionWidget(QWidget):
     def __init__(self, main_form, *args, **kwargs):
         super(LevelsCorrectionWidget, self).__init__(*args, **kwargs)
         self.block_applying: bool = False
-        self.options: CorrectionSettings = CorrectionSettings()
+        self._options: CorrectionSettings = CorrectionSettings()
         self.mf: MainForm = main_form
 
         self.resize(200, 200)
@@ -62,11 +62,11 @@ class LevelsCorrectionWidget(QWidget):
         painter.fillRect(0, 0, self.width(), self.height(), QBrush(QColor("#1D1D1D")))
 
     def reset_options(self):
-        self.options.levels.max_v = 255
+        self._options.levels.max_v = 255
         self.slider_max_v.setValue(255)
-        self.options.levels.mid_tone = 128
+        self._options.levels.mid_tone = 128
         self.slider_mid_v.setValue(128)
-        self.options.levels.min_v = 0
+        self._options.levels.min_v = 0
         self.slider_min_v.setValue(0)
 
     def reset_self(self, reset_type: CorrectionResetItem):
@@ -78,11 +78,30 @@ class LevelsCorrectionWidget(QWidget):
             self.slider_max_v.setValue(255)
         self.apply_options()
 
+    @property
+    def options(self) -> CorrectionSettings:
+        return self._options
+
+    @options.setter
+    def options(self, opt: CorrectionSettings) -> None:
+        self._options = opt
+        self.slider_max_v.blockSignals(True)
+        self.slider_max_v.setValue(opt.levels.max_v)
+        self.slider_max_v.blockSignals(False)
+
+        self.slider_min_v.blockSignals(True)
+        self.slider_min_v.setValue(opt.levels.min_v)
+        self.slider_min_v.blockSignals(False)
+
+        self.slider_mid_v.blockSignals(True)
+        self.slider_mid_v.setValue(opt.levels.mid_tone)
+        self.slider_mid_v.blockSignals(False)
+
     def apply_options(self):
         if not self.block_applying:
-            self.options.levels.max_v = max(self.slider_max_v.value(), self.slider_min_v.value())
-            self.options.levels.mid_tone = self.slider_mid_v.value()
-            self.options.levels.min_v = min(self.slider_max_v.value(), self.slider_min_v.value())
+            self._options.levels.max_v = max(self.slider_max_v.value(), self.slider_min_v.value())
+            self._options.levels.mid_tone = self.slider_mid_v.value()
+            self._options.levels.min_v = min(self.slider_max_v.value(), self.slider_min_v.value())
 
             self.mf.update_buffer()
             self.mf.update()

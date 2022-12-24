@@ -10,3 +10,6 @@ class CorrectionSettings:
         self.contrast: int = 255
         self.color_mode = cv2.COLOR_BGR2RGB
         self.device = 'GPU'
+
+    def reset(self):
+        self.__init__()

@@ -17,6 +17,12 @@ class GraphPanelLevels(GraphPanelBase):
         if self.mf.render_image.is_valid:
             scale_factor_x = self.width() / 255
             painter = QPainter(self)
+
+            painter.fillRect(0, 0, int(self.mf.options.levels.min_v / 255 * self.width()), self.height(),
+                             QBrush(QColor(0, 0, 0, 150)))
+            painter.fillRect(int(self.mf.options.levels.max_v / 255 * self.width()), 0, self.width(), self.height(),
+                             QBrush(QColor(0, 0, 0, 150)))
+
             painter.setPen(QPen(Qt.white, 1, Qt.SolidLine))
             painter.drawLine(int(self.mf.options.levels.min_v * scale_factor_x), 0,
                              int(self.mf.options.levels.min_v * scale_factor_x), self.height())

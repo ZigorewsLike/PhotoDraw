@@ -15,7 +15,7 @@ class BrightCorrectionWidget(QWidget):
     def __init__(self, main_form, *args, **kwargs):
         super(BrightCorrectionWidget, self).__init__(*args, **kwargs)
         self.block_applying: bool = False
-        self.options: CorrectionSettings = CorrectionSettings()
+        self._options: CorrectionSettings = CorrectionSettings()
         self.mf: MainForm = main_form
 
         self.label_bright_header = QLabel("Яркость: 1.0", self)
@@ -49,9 +49,9 @@ class BrightCorrectionWidget(QWidget):
         painter.fillRect(0, 0, self.width(), self.height(), QBrush(QColor("#1D1D1D")))
 
     def reset_options(self):
-        self.options.bright = 1.0
+        self._options.bright = 1.0
         self.slider_bright.setValue(100)
-        self.options.contrast = 255
+        self._options.contrast = 255
         self.slider_contrast.setValue(255)
 
     def reset_self(self, reset_type: CorrectionResetItem):
@@ -61,13 +61,31 @@ class BrightCorrectionWidget(QWidget):
             self.slider_contrast.setValue(255)
         self.apply_options()
 
+    @property
+    def options(self) -> CorrectionSettings:
+        return self._options
+
+    @options.setter
+    def options(self, opt: CorrectionSettings) -> None:
+        self._options = opt
+        self.slider_bright.blockSignals(True)
+        self.slider_bright.setValue(int(opt.bright * 100))
+        self.slider_bright.blockSignals(False)
+
+        self.slider_contrast.blockSignals(True)
+        self.slider_contrast.setValue(opt.contrast)
+        self.slider_contrast.blockSignals(False)
+
+        self.label_bright_header.setText(f"Яркость: {self._options.bright}")
+        self.label_contrast_header.setText(f"Контраст: {self._options.contrast}")
+
     def apply_options(self):
         if not self.block_applying:
-            self.options.bright = self.slider_bright.value() / 100
-            self.options.contrast = self.slider_contrast.value()
+            self._options.bright = self.slider_bright.value() / 100
+            self._options.contrast = self.slider_contrast.value()
 
-            self.label_bright_header.setText(f"Яркость: {self.options.bright}")
-            self.label_contrast_header.setText(f"Контраст: {self.options.contrast}")
+            self.label_bright_header.setText(f"Яркость: {self._options.bright}")
+            self.label_contrast_header.setText(f"Контраст: {self._options.contrast}")
 
             self.mf.update_buffer()
             self.mf.update()

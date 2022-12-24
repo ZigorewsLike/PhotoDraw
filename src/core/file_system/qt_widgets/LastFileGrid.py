@@ -8,10 +8,10 @@ import numpy as np
 
 from PyQt5.QtCore import Qt, QRectF, QSize
 from PyQt5.QtGui import QResizeEvent, QShowEvent, QPaintEvent, QPainter, QPainterPath, QImage, QMouseEvent, QColor, \
-    QTextOption, QFont
+    QTextOption, QFont, QPen
 from PyQt5.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QScrollArea, QFrame, QPushButton, QLabel
 
-from src.global_constants import PATH_TO_LAST_PREVIEW
+from src.global_constants import PATH_TO_LAST_PREVIEW, PROJECT_EXTENSION
 from ..LastFileContainer import LastFileProp
 from src.core.log import print_d
 from src.function_lib.render import np_to_qt_image
@@ -116,10 +116,14 @@ class LastFileItem(QWidget):
 
         self.setMouseTracking(True)
 
-        self.colors: List[QColor] = [QColor("#2D2E2E"), QColor("#494B4B")]
+        self.colors: List[QColor] = [QColor("#2D2E2E"), QColor("#494B4B"), QColor("#313D54"), QColor("#27542F")]
         self.background_color: QColor = self.colors[0]
+        self.project_color: QColor = self.colors[3]
+        self.file_color: QColor = self.colors[2]
 
         self.resize(200, 240)
+
+        self.is_project_file: bool = os.path.splitext(self.prop.path)[1].lower() == f'.{PROJECT_EXTENSION}'
 
         self.label_filename = QLabel(os.path.basename(self.prop.path), self)
         self.label_filename.setGeometry(0, self.width() + 5, self.width()-5, 20)
@@ -177,6 +181,12 @@ class LastFileItem(QWidget):
                 x_shift = (abs(width - height) / 2)
             rect = QRectF(margin + x_shift, margin + y_shift, width - margin*2, height - margin*2)
             painter.drawImage(rect, self.qt_image)
+
+        if self.is_project_file:
+            painter.setPen(QPen(self.project_color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        else:
+            painter.setPen(QPen(self.file_color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.drawPath(path)
 
         painter.end()
 

@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QImage
+from multipledispatch import dispatch
 
 from src.core.log import print_d
 from src.core.point_system import CRect, Point
@@ -36,8 +37,12 @@ class RenderImage:
             self.init_image(path)
 
     def init_image(self, path: str) -> None:
-        self.original_image: np.ndarray = cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_COLOR)
-        cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB, self.original_image)
+        self.init_image_from_np(cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_COLOR), convert_color=True)
+
+    def init_image_from_np(self, array: np.ndarray, convert_color: bool = False) -> None:
+        self.original_image: np.ndarray = array
+        if convert_color:
+            cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB, self.original_image)
         if self.original_image.ndim == 3:
             height, width, _ = self.original_image.shape
         else:

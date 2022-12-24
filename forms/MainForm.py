@@ -16,12 +16,13 @@ from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFi
 
 # region src imports
 from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG, \
-    PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW
+    PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW, PROJECT_EXTENSION
 from src.core.point_system import Point, CRect, SizeCollector
 from src.core.log import print_e, print_d, ConsoleWidget, StatusBarLogElement
 from src.core.render import RenderFrame, RenderImage, Camera, CorrectionSettings, RightPanelWidget
 from src.enums import StateMode
 from src.core.file_system import HomePage, LastFileContainer, LastFileProp
+from src.core.file_system.ProjectObject import load_project, SaveProjectObject, save_project
 from core.gpu.cl import print_all_device_info, OPENCL_ENABLED
 
 # endregion
@@ -88,6 +89,7 @@ class MainForm(QMainWindow):
             print_e(e)
             self.last_files_props = LastFileContainer()
         print_d(self.last_files_props.count)
+        self.last_files_props.delete_empty()
 
         # region UI widgets
         self.create_menu_bars()
@@ -230,6 +232,8 @@ class MainForm(QMainWindow):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_O:
             self.open_file_dialog()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_S:
+            self.save_file()
 
     # region Buffer functions
     def adjust_camera_position(self):
@@ -326,8 +330,9 @@ class MainForm(QMainWindow):
     @pyqtSlot()
     def open_file_dialog(self) -> None:
 
-        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *tif *tiff);;" \
+        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *.tif *.tiff *.{PROJECT_EXTENSION});;" \
                         f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
+                        f"Project file (*.{PROJECT_EXTENSION});;" \
                         f"{_('FilterAll')} (*.*)"
         filename = QFileDialog.getOpenFileName(self, _("OpenFileTitle"), os.getcwd(),
                                                dialog_filter)[0]
@@ -335,11 +340,27 @@ class MainForm(QMainWindow):
             self.open_file(filename)
 
     def open_file(self, path: str) -> None:
+        is_project_file: bool = os.path.splitext(path)[1].lower() == f'.{PROJECT_EXTENSION}'
         self.camera.reset()
         self.set_state_mode(StateMode.WORK)
 
-        self.render_image.init_image(path)
+        if is_project_file:
+            file_proj: Optional[SaveProjectObject] = load_project(path)
+            print_d(file_proj.shape_array)
+            image_array: np.ndarray = np.frombuffer(file_proj.bytes_array, np.uint8)
+            image_array = image_array.reshape(file_proj.shape_array)
+            self.render_image.init_image_from_np(image_array)
+            self.options = file_proj.correction_settings
+            self.render_image.buffer_settings = file_proj.buffer_settings
+        else:
+            self.render_image.init_image(path)
+            self.options.reset()
+        self.right_panel_widget.image_correction_widget.reset_options()
         self.render_image.get_unique_pixels()
+
+        self.render_image.options = self.options
+        self.right_panel_widget.image_correction_widget.options = self.options
+
         self.right_panel_widget.image_correction_widget.set_polyline_list()
         preview: np.ndarray = self.render_image.generate_preview()
 
@@ -351,8 +372,6 @@ class MainForm(QMainWindow):
         else:
             self.scale_image(1)
 
-        self.right_panel_widget.image_correction_widget.reset_options()
-
         self.label_image_size.setText(f"Image size: {self.render_image.size.width()}x{self.render_image.size.height()}")
         self.label_camera_scale.setText(f"Scale: {round(self.camera.scale_factor * 100)}%")
 
@@ -362,3 +381,16 @@ class MainForm(QMainWindow):
         cv2.imwrite(f'{PATH_TO_LAST_PREVIEW}{file_item.hash_path}.jpg', preview)
 
         gc.collect()
+
+    def save_file(self):
+        project_file = SaveProjectObject()
+        project_file.bytes_array = self.render_image.original_image.tobytes()
+        project_file.shape_array = self.render_image.original_image.shape
+        project_file.buffer_settings = self.render_image.buffer_settings
+        project_file.correction_settings = self.options
+
+        save_project(f'file.{PROJECT_EXTENSION}', project_file)
+
+        obj: Optional[SaveProjectObject] = load_project(f'file.{PROJECT_EXTENSION}')
+        if obj is not None:
+            print(obj.shape_array)
