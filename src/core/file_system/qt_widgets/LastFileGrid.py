@@ -75,7 +75,7 @@ class LastFileGrid(QWidget):
     def call_resize(self) -> None:
         self.scroll_area.resize(self.width(), self.height())
         widget_size: QSize = QSize(220, 260)
-        loc_col_count: int = math.ceil(self.width() / widget_size.width()) - 1
+        loc_col_count: int = max(1, math.ceil(self.width() / widget_size.width()) - 1)
         self.grid_frame.resize(min(loc_col_count * widget_size.width(), self.item_count * widget_size.width()),
                                widget_size.height() * math.ceil(self.item_count / loc_col_count) + self.top_panel)
         for i, widget in enumerate(self.grid_container):

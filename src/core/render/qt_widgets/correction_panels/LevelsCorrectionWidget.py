@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QPaintEvent, QPainter, QBrush, QColor
 from PyQt5.QtWidgets import QWidget, QLabel, QSlider, QVBoxLayout, QFrame
 
@@ -23,6 +23,7 @@ class LevelsCorrectionWidget(QWidget):
 
         self.paint_levels = GraphPanelLevels(self.mf, self)
         self.paint_levels.setMinimumHeight(160)
+        self.paint_levels.setOptions.connect(self.set_options)
 
         self.slider_min_v = QSlider(Qt.Horizontal, self)
         self.slider_min_v.setMaximum(255)
@@ -76,6 +77,15 @@ class LevelsCorrectionWidget(QWidget):
             self.slider_mid_v.setValue(127)
         elif reset_type is CorrectionResetItem.MAX_V:
             self.slider_max_v.setValue(255)
+        self.apply_options()
+
+    @pyqtSlot()
+    def set_options(self):
+        self.block_applying = True
+        self.slider_min_v.setValue(self.options.levels.min_v)
+        self.slider_mid_v.setValue(self.options.levels.mid_tone)
+        self.slider_max_v.setValue(self.options.levels.max_v)
+        self.block_applying = False
         self.apply_options()
 
     @property

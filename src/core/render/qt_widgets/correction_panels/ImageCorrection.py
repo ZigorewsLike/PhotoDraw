@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
+import numpy as np
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QCursor, QResizeEvent
 from PyQt5.QtWidgets import QWidget, QSlider, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QFrame
@@ -36,8 +37,8 @@ class ImageCorrection(QWidget):
 
         self.levels_correction.move(0, self.bright_correction.height())
 
-    def set_polyline_list(self):
-        self.levels_correction.paint_levels.set_polyline_list()
+    def set_polyline_list(self, unique_pixels: List[Tuple[np.ndarray, np.ndarray]]):
+        self.levels_correction.paint_levels.set_polyline_list(unique_pixels)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super(ImageCorrection, self).resizeEvent(event)

@@ -35,11 +35,19 @@ class BrightCorrectionWidget(QWidget):
         self.slider_contrast.setValue(255)
         self.slider_contrast.valueChanged.connect(self.apply_options)
 
+        self.slider_saturation = QSlider(Qt.Horizontal, self)
+        self.slider_saturation.setMaximum(200)
+        self.slider_saturation.setMinimum(0)
+        self.slider_saturation.mouseDoubleClickEvent = lambda x: self.reset_self(CorrectionResetItem.CONTRAST)
+        self.slider_saturation.setValue(100)
+        self.slider_saturation.valueChanged.connect(self.apply_options)
+
         self.vbl = QVBoxLayout()
         self.vbl.addWidget(self.label_bright_header)
         self.vbl.addWidget(self.slider_bright)
         self.vbl.addWidget(self.label_contrast_header)
         self.vbl.addWidget(self.slider_contrast)
+        self.vbl.addWidget(self.slider_saturation)
         self.vbl.addStretch(1)
         self.setLayout(self.vbl)
 
@@ -83,6 +91,7 @@ class BrightCorrectionWidget(QWidget):
         if not self.block_applying:
             self._options.bright = self.slider_bright.value() / 100
             self._options.contrast = self.slider_contrast.value()
+            self._options.saturation = self.slider_saturation.value() / 100
 
             self.label_bright_header.setText(f"Яркость: {self._options.bright}")
             self.label_contrast_header.setText(f"Контраст: {self._options.contrast}")

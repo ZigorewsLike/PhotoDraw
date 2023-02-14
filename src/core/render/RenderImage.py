@@ -7,7 +7,7 @@ from multipledispatch import dispatch
 
 from src.core.log import print_d
 from src.core.point_system import CRect, Point
-from src.function_lib import np_to_qt_image, get_part, get_unique
+from src.function_lib import np_to_qt_image, get_part, get_unique, vector_hsl_to_rgb, vector_rgb_to_hsl
 from .BufferSettings import BufferSettings
 from src.core.gpu.cl import set_bright_contrast, OPENCL_ENABLED, set_levels
 from .CorrectionSettings import CorrectionSettings, CorrectionLevels
@@ -87,6 +87,16 @@ class RenderImage:
                     self.buffer = set_bright_contrast(self.buffer, self.options.bright, self.options.contrast)
                 else:
                     self.buffer = self.buffer * self.options.bright + (self.options.contrast - 255)
+
+            # if self.options.saturation >= 0.0:
+            #     hsl_buffer = vector_rgb_to_hsl(self.buffer[:, :, 0], self.buffer[:, :, 1], self.buffer[:, :, 2])
+            #     gray_factor = hsl_buffer[1] / 255.0
+            #     var_interval = 255 - hsl_buffer[1]
+            #     new_s = hsl_buffer[1] + self.options.saturation * var_interval * gray_factor
+            #     rgb_buffer = vector_hsl_to_rgb(hsl_buffer[0], new_s, hsl_buffer[2])
+            #     self.buffer[:, :, 0] = rgb_buffer[0]
+            #     self.buffer[:, :, 1] = rgb_buffer[1]
+            #     self.buffer[:, :, 2] = rgb_buffer[2]
 
             if self.options.levels != CorrectionLevels(0, 255):
                 self.buffer = self.options.levels.apply_correction(self.buffer, 0, 255)
