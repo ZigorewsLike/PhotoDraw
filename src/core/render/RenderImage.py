@@ -1,3 +1,5 @@
+import os
+import shutil
 from typing import Optional, List, Tuple
 import numpy as np
 import cv2
@@ -120,3 +122,26 @@ class RenderImage:
             self.unique_pixels = [r, g, b]
         else:
             self.unique_pixels = [r]
+
+    def save_file(self, path: str) -> bool:
+        _, extension = os.path.splitext(path)
+        local_path = f'data/loc_save_img{extension}'
+        save_image_cv = self.original_image.copy()
+
+        # region Apply correction
+        if self.options.bright != 1.0 or self.options.contrast != 255:
+            if OPENCL_ENABLED:
+                save_image_cv = set_bright_contrast(save_image_cv, self.options.bright, self.options.contrast)
+            else:
+                save_image_cv = save_image_cv * self.options.bright + (self.options.contrast - 255)
+
+        if self.options.levels != CorrectionLevels(0, 255):
+            save_image_cv = self.options.levels.apply_correction(save_image_cv, 0, 255)
+        save_image_cv = save_image_cv.astype(np.uint8)
+        # endregion
+
+        cv2.cvtColor(save_image_cv, cv2.COLOR_RGB2BGR, save_image_cv)
+        cv2.imwrite(local_path, save_image_cv)
+        shutil.copy(local_path, path)
+        os.remove(local_path)
+        return True

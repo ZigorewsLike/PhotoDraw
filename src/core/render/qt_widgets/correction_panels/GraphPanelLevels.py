@@ -60,8 +60,6 @@ class GraphPanelLevels(GraphPanelBase):
             button.setVisible(False)
             button.clicked.connect(lambda _, index=i: self.set_channel_visible(index))
             self.button_container.append(button)
-
-
         # endregion
 
     def paintEvent(self, event: QPaintEvent) -> None:

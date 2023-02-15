@@ -39,8 +39,8 @@ def array_to_8bit(array: np.ndarray, array_max: float, array_min: float = 0) -> 
 
 
 def get_unique(array: np.ndarray, channel: int) -> Tuple[np.ndarray, np.ndarray]:
-    counts = np.bincount(array[:, :, channel].flatten())
-    pos = np.array([i for i in range(array[:, :, channel].flatten().min(), array[:, :, channel].flatten().max() + 1)])
+    counts = np.bincount(array[:, :, channel].flatten(), minlength=np.iinfo(array.dtype).max + 1)
+    pos = np.array([i for i in range(0, np.iinfo(array.dtype).max + 1)])
     return pos, counts
 
 

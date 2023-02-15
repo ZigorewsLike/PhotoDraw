@@ -91,6 +91,10 @@ class MainForm(QMainWindow):
         print_d(self.last_files_props.count)
         self.last_files_props.delete_empty()
 
+        self.last_open_path: str = os.getcwd()
+        self.last_save_path: str = os.getcwd()
+        self.open_filename: str = ""
+
         # region UI widgets
         self.create_menu_bars()
 
@@ -202,19 +206,40 @@ class MainForm(QMainWindow):
         icon = QPixmap(self.resource_icon_dir + "baseline_file_open_black_24dp.png")
         open_file.setIcon(QIcon(icon))
 
+        save_file = QAction("&Сохранить", self)
+        save_file.triggered.connect(self.open_file_dialog)
+        save_file.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
+        icon = QPixmap(self.resource_icon_dir + "baseline_file_save_black_24dp.png")
+        save_file.setIcon(QIcon(icon))
+
+        save_as_file = QAction("&Сохранить как ...", self)
+        save_as_file.triggered.connect(self.save_file_dialog)
+        save_as_file.setShortcut(QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_S))
+        icon = QPixmap(self.resource_icon_dir + "baseline_file_save_as_black_24dp.png")
+        save_as_file.setIcon(QIcon(icon))
+
         home_menu = QAction('&Домашняя страница', self)
         home_menu.triggered.connect(lambda: self.set_state_mode(StateMode.HOME))
         icon = QPixmap(self.resource_icon_dir + "baseline_home_black_24dp.png")
         home_menu.setIcon(QIcon(icon))
 
+        exit_menu = QAction('&Выход', self)
+        exit_menu.triggered.connect(lambda: self.close())
+        icon = QPixmap(self.resource_icon_dir + "baseline_exit_black_24dp.png")
+        exit_menu.setIcon(QIcon(icon))
+
         file_menu.addAction(home_menu)
         file_menu.addAction(open_file)
         file_menu.addSeparator()
+        file_menu.addAction(save_as_file)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_menu)
 
         file_tool_bar = QToolBar("File")
 
         file_tool_bar.addAction(home_menu)
         file_tool_bar.addAction(open_file)
+        file_tool_bar.addAction(save_as_file)
         file_tool_bar.setMovable(False)
         file_tool_bar.setContextMenuPolicy(Qt.NoContextMenu)
         self.setContextMenuPolicy(Qt.NoContextMenu)
@@ -232,8 +257,6 @@ class MainForm(QMainWindow):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_O:
             self.open_file_dialog()
-        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_S:
-            self.save_file()
 
     # region Buffer functions
     def adjust_camera_position(self):
@@ -334,12 +357,28 @@ class MainForm(QMainWindow):
                         f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
                         f"Project file (*.{PROJECT_EXTENSION});;" \
                         f"{_('FilterAll')} (*.*)"
-        filename = QFileDialog.getOpenFileName(self, _("OpenFileTitle"), os.getcwd(),
+        filename = QFileDialog.getOpenFileName(self, _("OpenFileTitle"), self.last_open_path,
                                                dialog_filter)[0]
         if filename != "":
             self.open_file(filename)
 
+    @pyqtSlot()
+    def save_file_dialog(self) -> None:
+
+        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *.{PROJECT_EXTENSION});;" \
+                        f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
+                        f"Project file (*.{PROJECT_EXTENSION});;"
+        filename = QFileDialog.getSaveFileName(self, "Сохранить файл",
+                                               os.path.join(self.last_save_path, self.open_filename),
+                                               dialog_filter)[0]
+        if filename != "":
+            self.save_file(filename)
+
     def open_file(self, path: str) -> None:
+        self.last_open_path = os.path.dirname(path)
+        self.last_save_path = os.path.dirname(path)
+        self.open_filename = os.path.basename(path)
+
         is_project_file: bool = os.path.splitext(path)[1].lower() == f'.{PROJECT_EXTENSION}'
         self.camera.reset()
         self.set_state_mode(StateMode.WORK)
@@ -382,15 +421,16 @@ class MainForm(QMainWindow):
 
         gc.collect()
 
-    def save_file(self):
-        project_file = SaveProjectObject()
-        project_file.bytes_array = self.render_image.original_image.tobytes()
-        project_file.shape_array = self.render_image.original_image.shape
-        project_file.buffer_settings = self.render_image.buffer_settings
-        project_file.correction_settings = self.options
+    def save_file(self, save_path: str) -> None:
+        is_project_file: bool = os.path.splitext(save_path)[1].lower() == f'.{PROJECT_EXTENSION}'
+        self.last_save_path = os.path.dirname(save_path)
+        if is_project_file:
+            project_file = SaveProjectObject()
+            project_file.bytes_array = self.render_image.original_image.tobytes()
+            project_file.shape_array = self.render_image.original_image.shape
+            project_file.buffer_settings = self.render_image.buffer_settings
+            project_file.correction_settings = self.options
 
-        save_project(f'file.{PROJECT_EXTENSION}', project_file)
-
-        obj: Optional[SaveProjectObject] = load_project(f'file.{PROJECT_EXTENSION}')
-        if obj is not None:
-            print(obj.shape_array)
+            save_project(save_path, project_file)
+        else:
+            self.render_image.save_file(save_path)

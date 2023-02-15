@@ -156,7 +156,6 @@ class LastFileItem(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.begin(self)
 
         path = QPainterPath()
         margin: int = 0
@@ -187,7 +186,5 @@ class LastFileItem(QWidget):
         else:
             painter.setPen(QPen(self.file_color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.drawPath(path)
-
-        painter.end()
 
 
