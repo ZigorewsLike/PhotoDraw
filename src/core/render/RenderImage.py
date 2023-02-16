@@ -54,8 +54,7 @@ class RenderImage:
 
         self.is_valid = True
 
-    def generate_preview(self) -> np.ndarray:
-        preview_size: int = 200
+    def generate_preview(self, preview_size: int = 200) -> np.ndarray:
         scale: float = self.size.width() / self.size.height()
         if self.size.width() > self.size.height():
             width: int = preview_size

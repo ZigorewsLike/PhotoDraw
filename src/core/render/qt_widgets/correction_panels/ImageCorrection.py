@@ -3,12 +3,13 @@ from typing import TYPE_CHECKING, List, Tuple
 import numpy as np
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QCursor, QResizeEvent
-from PyQt5.QtWidgets import QWidget, QSlider, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QFrame
+from PyQt5.QtWidgets import QWidget, QSlider, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QFrame, QPushButton
 
 if TYPE_CHECKING:
     from forms.MainForm import MainForm
 
 from src.core.render.CorrectionSettings import CorrectionSettings
+from src.global_style_sheets import TAB_STYLE
 from .BrightCorrectionWidget import BrightCorrectionWidget
 from .LevelsCorrectionWidget import LevelsCorrectionWidget
 
@@ -17,13 +18,14 @@ class ImageCorrection(QWidget):
 
     def __init__(self, main_form, *args, **kwargs):
         super(ImageCorrection, self).__init__(*args, **kwargs)
-        self.resize(200, 300)
+        self.resize(200, 340)
 
         self.setStyleSheet("""
         QLabel{
             color: white;
         }
-        """)
+        %s
+        """ % TAB_STYLE)
 
         self._options: CorrectionSettings = CorrectionSettings()
         self.block_applying: bool = False
@@ -43,7 +45,6 @@ class ImageCorrection(QWidget):
     def resizeEvent(self, event: QResizeEvent) -> None:
         super(ImageCorrection, self).resizeEvent(event)
         self.tabs.resize(self.width(), self.height())
-        # self.tabs.move(0, 0)
 
     @property
     def options(self) -> CorrectionSettings:
@@ -54,6 +55,7 @@ class ImageCorrection(QWidget):
         self._options = opt
         self.bright_correction.options = opt
         self.levels_correction.options = opt
+        self.levels_correction.set_options()
 
     def reset_options(self):
         self.levels_correction.reset_options()

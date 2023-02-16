@@ -160,18 +160,20 @@ class MainForm(QMainWindow):
         super(MainForm, self).resizeEvent(e)
         self.recalculate_size()
 
-    def recalculate_size(self):
+    def recalculate_size(self, call_buffer_scale: bool = False, call_buffer_update: bool = True):
         self.work_area.right = self.width() - self.size_collector.correction_panel
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
         self.work_area.left = self.size_collector.draw_toolbar_panel
         self.work_area.top = self.size_collector.menu_toolbar_panel
 
-        self.right_panel_widget.resize(min(self.right_panel_widget.width(), self.width() - 400), self.height())
+        self.right_panel_widget.resize(min(self.right_panel_widget.width(),
+                                           max(self.width() - 400, self.right_panel_widget.min_width)),
+                                       self.height() - self.size_collector.footer_panel - self.size_collector.menu_toolbar_panel)
         self.right_panel_widget.move(self.work_area.right, self.work_area.top)
 
         self.render_frame.setGeometry(*self.work_area)
         self.render_image.buffer_size = CRect(0, 0, self.render_frame.width(), self.render_frame.height())
-        # self.update_buffer(self.camera.position)
+
         if self.state is StateMode.HOME:
             self.home_page.setGeometry(*self.work_area)
 
@@ -180,7 +182,10 @@ class MainForm(QMainWindow):
         self.console.move(self.work_area.left, self.height() - self.size_collector.footer_panel - self.console.height())
         self.console.resize(int(self.work_area.width), self.console.height())
 
-        self.scale_image(self.camera.scale_factor)
+        if call_buffer_scale:
+            self.scale_image(self.camera.scale_factor)
+        if call_buffer_update:
+            self.update_buffer(self.camera.position)
 
     def set_state_mode(self, state: StateMode) -> None:
         self.state = state

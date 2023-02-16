@@ -1,15 +1,18 @@
 from src.enums import StateMode
+from dataclasses import dataclass
 
 
+@dataclass()
 class SizeCollector:
-    left_panel: int = 0
-    top_panel: int = 20
-    toolbar_panel: int = 40
-    right_panel: int = 200
-    bottom_panel: int = 20
+    __slots__ = ["state", "left_panel", "top_panel", "toolbar_panel", "right_panel", "bottom_panel"]
 
     def __init__(self, state: StateMode = StateMode.HOME):
         self.state: StateMode = state
+        self.left_panel: int = 0
+        self.top_panel: int = 20
+        self.toolbar_panel: int = 40
+        self.right_panel: int = 340
+        self.bottom_panel: int = 20
 
     @property
     def draw_toolbar_panel(self) -> int:
