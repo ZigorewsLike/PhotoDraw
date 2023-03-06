@@ -1,5 +1,6 @@
 # Project files
 *.zip
+*.pdproject
 
 # Project dirs
 logs

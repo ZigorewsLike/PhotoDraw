@@ -10,20 +10,20 @@ import pickle
 import numpy as np
 import cv2
 
-from PyQt5.QtCore import QRect, QRectF, pyqtSlot, QTimer, QSize, Qt, QPoint
-from PyQt5.QtGui import QPaintEvent, QPainter, QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
-from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog, QToolBar
-from PyQt5.QtWinExtras import QWinTaskbarProgress
+from PyQt5.QtCore import pyqtSlot, QTimer, QSize, Qt
+from PyQt5.QtGui import QColor, QResizeEvent, QPixmap, QIcon, QKeySequence, QKeyEvent, QShowEvent
+from PyQt5.QtWidgets import QMainWindow, QStatusBar, QLabel, QMenu, QAction, QFileDialog, QToolBar, QSplitter
 
 # region src imports
-from src.function_lib import median
 from src.global_constants import APP_NAME, CONFIGURATION, USAGE_TIMER_TICK_INTERVAL, LOG_SHOW_CONSOLE, DEBUG, \
-    PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW
+    PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW, PROJECT_EXTENSION
 from src.core.point_system import Point, CRect, SizeCollector
-from src.core.log import print_i, print_e, print_d, ConsoleWidget, StatusBarLogElement
-from src.core.render import RenderFrame, RenderImage, Camera
+from src.core.log import print_e, print_d, ConsoleWidget, StatusBarLogElement
+from src.core.render import RenderFrame, RenderImage, Camera, CorrectionSettings, RightPanelWidget
 from src.enums import StateMode
 from src.core.file_system import HomePage, LastFileContainer, LastFileProp
+from src.core.file_system.ProjectObject import load_project, SaveProjectObject, save_project
+from core.gpu.cl import print_all_device_info, OPENCL_ENABLED
 
 # endregion
 
@@ -32,9 +32,10 @@ from src.core.file_system import HomePage, LastFileContainer, LastFileProp
 lang = gettext.translation('mainForm', localedir='locales', languages=['ru'])
 lang.install()
 _ = lang.gettext
-
-
 # endregion
+
+if DEBUG:
+    print_all_device_info()
 
 
 class MainForm(QMainWindow):
@@ -72,7 +73,9 @@ class MainForm(QMainWindow):
                                           self.height() - self.size_collector.footer_panel)
 
         # region Render vars
+        self.options: CorrectionSettings = CorrectionSettings()
         self.render_image = RenderImage()
+        self.render_image.options = self.options
         self.camera = Camera()
         # endregion
 
@@ -86,6 +89,11 @@ class MainForm(QMainWindow):
             print_e(e)
             self.last_files_props = LastFileContainer()
         print_d(self.last_files_props.count)
+        self.last_files_props.delete_empty()
+
+        self.last_open_path: str = os.getcwd()
+        self.last_save_path: str = os.getcwd()
+        self.open_filename: str = ""
 
         # region UI widgets
         self.create_menu_bars()
@@ -93,10 +101,8 @@ class MainForm(QMainWindow):
         self.render_frame = RenderFrame(self)
         self.render_frame.setGeometry(*self.work_area)
 
-        self.console = ConsoleWidget()
-        sys.stdout.widget_print.connect(self.console.print_text)  # noqa
-        self.console.setParent(self)
-        self.console.setVisible(LOG_SHOW_CONSOLE)
+        self.right_panel_widget = RightPanelWidget(self, self)
+        self.right_panel_widget.image_correction_widget.options = self.options
 
         self.label_ram_memory = QLabel("RAM: ...", self)
         self.label_ram_memory.setObjectName("StatusBarLabel")
@@ -114,10 +120,6 @@ class MainForm(QMainWindow):
                                                       self)
         self.widget_error_count.color = QColor("#00FE35")
 
-        # self.widget_warning_count = StatusBarLogElement(self.resource_icon_dir + "baseline_error_white_24dp.png", "0",
-        #                                                 self)
-        # self.widget_warning_count.color = QColor("#FFFF4E")
-
         self.usage_timer = QTimer(self)
         self.usage_timer.timeout.connect(self.get_ram_usage)
         self.usage_timer.start(USAGE_TIMER_TICK_INTERVAL)
@@ -130,9 +132,13 @@ class MainForm(QMainWindow):
         self.status_bar.addWidget(self.label_ram_memory)
 
         self.status_bar.addPermanentWidget(self.widget_error_count)
-        # self.status_bar.addPermanentWidget(self.widget_warning_count)
 
         self.home_page = HomePage(self)
+
+        self.console = ConsoleWidget()
+        sys.stdout.widget_print.connect(self.console.print_text)  # noqa
+        self.console.setParent(self)
+        self.console.setVisible(LOG_SHOW_CONSOLE)
         # endregion
 
     def init_ui(self):
@@ -154,15 +160,20 @@ class MainForm(QMainWindow):
         super(MainForm, self).resizeEvent(e)
         self.recalculate_size()
 
-    def recalculate_size(self):
+    def recalculate_size(self, call_buffer_scale: bool = False, call_buffer_update: bool = True):
         self.work_area.right = self.width() - self.size_collector.correction_panel
         self.work_area.bottom = self.height() - self.size_collector.footer_panel
         self.work_area.left = self.size_collector.draw_toolbar_panel
         self.work_area.top = self.size_collector.menu_toolbar_panel
 
+        self.right_panel_widget.resize(min(self.right_panel_widget.width(),
+                                           max(self.width() - 400, self.right_panel_widget.min_width)),
+                                       self.height() - self.size_collector.footer_panel - self.size_collector.menu_toolbar_panel)
+        self.right_panel_widget.move(self.work_area.right, self.work_area.top)
+
         self.render_frame.setGeometry(*self.work_area)
         self.render_image.buffer_size = CRect(0, 0, self.render_frame.width(), self.render_frame.height())
-        # self.update_buffer(self.camera.position)
+
         if self.state is StateMode.HOME:
             self.home_page.setGeometry(*self.work_area)
 
@@ -171,7 +182,10 @@ class MainForm(QMainWindow):
         self.console.move(self.work_area.left, self.height() - self.size_collector.footer_panel - self.console.height())
         self.console.resize(int(self.work_area.width), self.console.height())
 
-        self.scale_image(self.camera.scale_factor)
+        if call_buffer_scale:
+            self.scale_image(self.camera.scale_factor)
+        if call_buffer_update:
+            self.update_buffer(self.camera.position)
 
     def set_state_mode(self, state: StateMode) -> None:
         self.state = state
@@ -197,19 +211,40 @@ class MainForm(QMainWindow):
         icon = QPixmap(self.resource_icon_dir + "baseline_file_open_black_24dp.png")
         open_file.setIcon(QIcon(icon))
 
+        save_file = QAction("&Сохранить", self)
+        save_file.triggered.connect(self.open_file_dialog)
+        save_file.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
+        icon = QPixmap(self.resource_icon_dir + "baseline_file_save_black_24dp.png")
+        save_file.setIcon(QIcon(icon))
+
+        save_as_file = QAction("&Сохранить как ...", self)
+        save_as_file.triggered.connect(self.save_file_dialog)
+        save_as_file.setShortcut(QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_S))
+        icon = QPixmap(self.resource_icon_dir + "baseline_file_save_as_black_24dp.png")
+        save_as_file.setIcon(QIcon(icon))
+
         home_menu = QAction('&Домашняя страница', self)
         home_menu.triggered.connect(lambda: self.set_state_mode(StateMode.HOME))
         icon = QPixmap(self.resource_icon_dir + "baseline_home_black_24dp.png")
         home_menu.setIcon(QIcon(icon))
 
+        exit_menu = QAction('&Выход', self)
+        exit_menu.triggered.connect(lambda: self.close())
+        icon = QPixmap(self.resource_icon_dir + "baseline_exit_black_24dp.png")
+        exit_menu.setIcon(QIcon(icon))
+
         file_menu.addAction(home_menu)
         file_menu.addAction(open_file)
         file_menu.addSeparator()
+        file_menu.addAction(save_as_file)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_menu)
 
         file_tool_bar = QToolBar("File")
 
         file_tool_bar.addAction(home_menu)
         file_tool_bar.addAction(open_file)
+        file_tool_bar.addAction(save_as_file)
         file_tool_bar.setMovable(False)
         file_tool_bar.setContextMenuPolicy(Qt.NoContextMenu)
         self.setContextMenuPolicy(Qt.NoContextMenu)
@@ -323,19 +358,54 @@ class MainForm(QMainWindow):
     @pyqtSlot()
     def open_file_dialog(self) -> None:
 
-        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *tif *tiff);;" \
+        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *.tif *.tiff *.{PROJECT_EXTENSION});;" \
                         f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
+                        f"Project file (*.{PROJECT_EXTENSION});;" \
                         f"{_('FilterAll')} (*.*)"
-        filename = QFileDialog.getOpenFileName(self, _("OpenFileTitle"), os.getcwd(),
+        filename = QFileDialog.getOpenFileName(self, _("OpenFileTitle"), self.last_open_path,
                                                dialog_filter)[0]
         if filename != "":
             self.open_file(filename)
 
+    @pyqtSlot()
+    def save_file_dialog(self) -> None:
+
+        dialog_filter = f"{_('FilterImages')}(*.jpg *.jpeg *.png *.{PROJECT_EXTENSION});;" \
+                        f"JPEG (*.jpg *.jpeg);;PNG (*.png);;" \
+                        f"Project file (*.{PROJECT_EXTENSION});;"
+        filename = QFileDialog.getSaveFileName(self, "Сохранить файл",
+                                               os.path.join(self.last_save_path, self.open_filename),
+                                               dialog_filter)[0]
+        if filename != "":
+            self.save_file(filename)
+
     def open_file(self, path: str) -> None:
+        self.last_open_path = os.path.dirname(path)
+        self.last_save_path = os.path.dirname(path)
+        self.open_filename = os.path.basename(path)
+
+        is_project_file: bool = os.path.splitext(path)[1].lower() == f'.{PROJECT_EXTENSION}'
         self.camera.reset()
         self.set_state_mode(StateMode.WORK)
 
-        self.render_image.init_image(path)
+        if is_project_file:
+            file_proj: Optional[SaveProjectObject] = load_project(path)
+            print_d(file_proj.shape_array)
+            image_array: np.ndarray = np.frombuffer(file_proj.bytes_array, np.uint8)
+            image_array = image_array.reshape(file_proj.shape_array)
+            self.render_image.init_image_from_np(image_array)
+            self.options = file_proj.correction_settings
+            self.render_image.buffer_settings = file_proj.buffer_settings
+        else:
+            self.render_image.init_image(path)
+            self.options.reset()
+        self.right_panel_widget.image_correction_widget.reset_options()
+        self.render_image.get_unique_pixels()
+
+        self.render_image.options = self.options
+        self.right_panel_widget.image_correction_widget.options = self.options
+
+        self.right_panel_widget.image_correction_widget.set_polyline_list(self.render_image.unique_pixels)
         preview: np.ndarray = self.render_image.generate_preview()
 
         normal_scale = min(self.render_image.buffer_size.width / self.render_image.size.width(),
@@ -355,3 +425,17 @@ class MainForm(QMainWindow):
         cv2.imwrite(f'{PATH_TO_LAST_PREVIEW}{file_item.hash_path}.jpg', preview)
 
         gc.collect()
+
+    def save_file(self, save_path: str) -> None:
+        is_project_file: bool = os.path.splitext(save_path)[1].lower() == f'.{PROJECT_EXTENSION}'
+        self.last_save_path = os.path.dirname(save_path)
+        if is_project_file:
+            project_file = SaveProjectObject()
+            project_file.bytes_array = self.render_image.original_image.tobytes()
+            project_file.shape_array = self.render_image.original_image.shape
+            project_file.buffer_settings = self.render_image.buffer_settings
+            project_file.correction_settings = self.options
+
+            save_project(save_path, project_file)
+        else:
+            self.render_image.save_file(save_path)

@@ -1,13 +1,18 @@
-from typing import Optional
+import os
+import shutil
+from typing import Optional, List, Tuple
 import numpy as np
 import cv2
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QImage
+from multipledispatch import dispatch
 
 from src.core.log import print_d
 from src.core.point_system import CRect, Point
-from src.function_lib import np_to_qt_image, get_part
+from src.function_lib import np_to_qt_image, get_part, get_unique, vector_hsl_to_rgb, vector_rgb_to_hsl
 from .BufferSettings import BufferSettings
+from src.core.gpu.cl import set_bright_contrast, OPENCL_ENABLED, set_levels
+from .CorrectionSettings import CorrectionSettings, CorrectionLevels
 
 
 class RenderImage:
@@ -26,13 +31,20 @@ class RenderImage:
         self.scale_factor: float = 1.0
         self.scale_ratio: int = 1
         self.image_format: QImage.Format = QImage.Format_RGB888
+        self.options: CorrectionSettings = CorrectionSettings()
+
+        self.unique_pixels: List[Tuple[np.ndarray, np.ndarray]] = []
 
         if path:
             self.init_image(path)
 
     def init_image(self, path: str) -> None:
-        self.original_image: np.ndarray = cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_COLOR)
-        cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB, self.original_image)
+        self.init_image_from_np(cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_COLOR), convert_color=True)
+
+    def init_image_from_np(self, array: np.ndarray, convert_color: bool = False) -> None:
+        self.original_image: np.ndarray = array
+        if convert_color:
+            cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB, self.original_image)
         if self.original_image.ndim == 3:
             height, width, _ = self.original_image.shape
         else:
@@ -42,8 +54,7 @@ class RenderImage:
 
         self.is_valid = True
 
-    def generate_preview(self) -> np.ndarray:
-        preview_size: int = 200
+    def generate_preview(self, preview_size: int = 200) -> np.ndarray:
         scale: float = self.size.width() / self.size.height()
         if self.size.width() > self.size.height():
             width: int = preview_size
@@ -51,7 +62,6 @@ class RenderImage:
         else:
             width: int = int(preview_size * scale)
             height: int = preview_size
-        print_d(width, height)
         preview = cv2.resize(self.original_image, (width, height), interpolation=cv2.INTER_CUBIC)
         return preview
 
@@ -71,6 +81,29 @@ class RenderImage:
                 self.buffer_size.shift(-camera_pos)
 
             self.buffer = get_part(self.buffer_size, self.original_image, self.camera_scale_factor, self.scale_ratio)
+
+            # region Image correction
+            if self.options.bright != 1.0 or self.options.contrast != 255:
+                if OPENCL_ENABLED:
+                    self.buffer = set_bright_contrast(self.buffer, self.options.bright, self.options.contrast)
+                else:
+                    self.buffer = self.buffer * self.options.bright + (self.options.contrast - 255)
+
+            # if self.options.saturation >= 0.0:
+            #     hsl_buffer = vector_rgb_to_hsl(self.buffer[:, :, 0], self.buffer[:, :, 1], self.buffer[:, :, 2])
+            #     gray_factor = hsl_buffer[1] / 255.0
+            #     var_interval = 255 - hsl_buffer[1]
+            #     new_s = hsl_buffer[1] + self.options.saturation * var_interval * gray_factor
+            #     rgb_buffer = vector_hsl_to_rgb(hsl_buffer[0], new_s, hsl_buffer[2])
+            #     self.buffer[:, :, 0] = rgb_buffer[0]
+            #     self.buffer[:, :, 1] = rgb_buffer[1]
+            #     self.buffer[:, :, 2] = rgb_buffer[2]
+
+            if self.options.levels != CorrectionLevels(0, 255):
+                self.buffer = self.options.levels.apply_correction(self.buffer, 0, 255)
+            self.buffer = self.buffer.astype(np.uint8)
+            # endregion
+
             image_width = int(self.buffer.shape[1] * self.scale_factor)
             image_height = int(self.buffer.shape[0] * self.scale_factor)
             if image_height > 0 and image_width > 0:
@@ -79,3 +112,35 @@ class RenderImage:
                 pass
 
             self.qt_image = np_to_qt_image(self.buffer, self.image_format)
+
+    def get_unique_pixels(self):
+        r = get_unique(self.original_image, 0)
+        if self.original_image.ndim == 3:
+            g = get_unique(self.original_image, 1)
+            b = get_unique(self.original_image, 2)
+            self.unique_pixels = [r, g, b]
+        else:
+            self.unique_pixels = [r]
+
+    def save_file(self, path: str) -> bool:
+        _, extension = os.path.splitext(path)
+        local_path = f'data/loc_save_img{extension}'
+        save_image_cv = self.original_image.copy()
+
+        # region Apply correction
+        if self.options.bright != 1.0 or self.options.contrast != 255:
+            if OPENCL_ENABLED:
+                save_image_cv = set_bright_contrast(save_image_cv, self.options.bright, self.options.contrast)
+            else:
+                save_image_cv = save_image_cv * self.options.bright + (self.options.contrast - 255)
+
+        if self.options.levels != CorrectionLevels(0, 255):
+            save_image_cv = self.options.levels.apply_correction(save_image_cv, 0, 255)
+        save_image_cv = save_image_cv.astype(np.uint8)
+        # endregion
+
+        cv2.cvtColor(save_image_cv, cv2.COLOR_RGB2BGR, save_image_cv)
+        cv2.imwrite(local_path, save_image_cv)
+        shutil.copy(local_path, path)
+        os.remove(local_path)
+        return True

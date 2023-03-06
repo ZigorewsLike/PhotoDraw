@@ -1,10 +1,11 @@
+import os
 import pickle
 from datetime import datetime
 from typing import List
 
 from src.function_lib import fixed_hash
 from src.enums import StateMode
-from src.global_constants import PATH_TO_LAST_FILES
+from src.global_constants import PATH_TO_LAST_FILES, PATH_TO_LAST_PREVIEW
 
 
 class LastFileProp:
@@ -31,7 +32,15 @@ class LastFileContainer:
         if item not in self.props:
             self.props.append(item)
         else:
-            pass
+            old_item = self.props[self.props.index(item)]
+            old_item.last_date = datetime.now()
+        self.save_to_file()
+
+    def delete_empty(self):
+        for prop in self.props:
+            if not os.path.exists(prop.path):
+                self.props.remove(prop)
+                os.remove(os.path.join(PATH_TO_LAST_PREVIEW, f"{prop.hash_path}.jpg"))
         self.save_to_file()
 
     def save_to_file(self):

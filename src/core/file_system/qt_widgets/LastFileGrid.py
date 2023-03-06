@@ -8,10 +8,10 @@ import numpy as np
 
 from PyQt5.QtCore import Qt, QRectF, QSize
 from PyQt5.QtGui import QResizeEvent, QShowEvent, QPaintEvent, QPainter, QPainterPath, QImage, QMouseEvent, QColor, \
-    QTextOption, QFont
+    QTextOption, QFont, QPen
 from PyQt5.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QScrollArea, QFrame, QPushButton, QLabel
 
-from src.global_constants import PATH_TO_LAST_PREVIEW
+from src.global_constants import PATH_TO_LAST_PREVIEW, PROJECT_EXTENSION
 from ..LastFileContainer import LastFileProp
 from src.core.log import print_d
 from src.function_lib.render import np_to_qt_image
@@ -37,6 +37,7 @@ class LastFileGrid(QWidget):
 
         self.item_count: int = 0
         self.col_count: int = 5
+        self.top_panel: int = 0
 
         self.grid_container: List[LastFileItem] = []
 
@@ -52,11 +53,14 @@ class LastFileGrid(QWidget):
         super().resizeEvent(event)
         self.call_resize()
 
+    def sort_container(self):
+        self.grid_container.sort(key=lambda x: x.prop.last_date, reverse=True)
+
     def generate_grid(self, props: List[LastFileProp]) -> None:
         self.item_count = len(props)
         for i, widget in enumerate(reversed(self.grid_container)):
             widget.deleteLater()
-            self.grid_container.remove(widget)
+            self.grid_container.pop(len(self.grid_container) - 1)
         props.reverse()
         for i in range(self.item_count):
             widget = LastFileItem(props[i], self, self.grid_frame)
@@ -64,17 +68,19 @@ class LastFileGrid(QWidget):
             widget.setVisible(True)
             self.grid_container.append(widget)
 
+        self.sort_container()
         self.call_resize()
         self.update()
 
     def call_resize(self) -> None:
         self.scroll_area.resize(self.width(), self.height())
         widget_size: QSize = QSize(220, 260)
-        loc_col_count: int = math.ceil(self.width() / widget_size.width()) - 1
+        loc_col_count: int = max(1, math.ceil(self.width() / widget_size.width()) - 1)
         self.grid_frame.resize(min(loc_col_count * widget_size.width(), self.item_count * widget_size.width()),
-                               widget_size.height() * math.ceil(self.item_count / loc_col_count))
+                               widget_size.height() * math.ceil(self.item_count / loc_col_count) + self.top_panel)
         for i, widget in enumerate(self.grid_container):
-            widget.move(widget_size.width() * (i % loc_col_count), widget_size.height() * (i // loc_col_count))
+            widget.move(widget_size.width() * (i % loc_col_count),
+                        widget_size.height() * (i // loc_col_count) + self.top_panel)
 
     def update(self) -> None:
         super(LastFileGrid, self).update()
@@ -110,10 +116,14 @@ class LastFileItem(QWidget):
 
         self.setMouseTracking(True)
 
-        self.colors: List[QColor] = [QColor("#2D2E2E"), QColor("#494B4B")]
+        self.colors: List[QColor] = [QColor("#2D2E2E"), QColor("#494B4B"), QColor("#313D54"), QColor("#27542F")]
         self.background_color: QColor = self.colors[0]
+        self.project_color: QColor = self.colors[3]
+        self.file_color: QColor = self.colors[2]
 
         self.resize(200, 240)
+
+        self.is_project_file: bool = os.path.splitext(self.prop.path)[1].lower() == f'.{PROJECT_EXTENSION}'
 
         self.label_filename = QLabel(os.path.basename(self.prop.path), self)
         self.label_filename.setGeometry(0, self.width() + 5, self.width()-5, 20)
@@ -146,7 +156,6 @@ class LastFileItem(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.begin(self)
 
         path = QPainterPath()
         margin: int = 0
@@ -172,6 +181,10 @@ class LastFileItem(QWidget):
             rect = QRectF(margin + x_shift, margin + y_shift, width - margin*2, height - margin*2)
             painter.drawImage(rect, self.qt_image)
 
-        painter.end()
+        if self.is_project_file:
+            painter.setPen(QPen(self.project_color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        else:
+            painter.setPen(QPen(self.file_color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.drawPath(path)
 
 
